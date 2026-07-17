@@ -27,8 +27,12 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
     frontend + Turnstile), anti-phishing code (needs notification module email
     templating), login/register audit hooks. Property-test ledger + no-negative
     invariant already covered by account tests.
-- Next: close phase 1 stragglers OR start Phase 2 (market + order + matching +
-  settlement) per kyra-doc/modules 03-06. Ledger (02) is ready to build on.
+- Phase 2 in progress:
+  - market (modules/03) DONE — asset/pair registry, in-memory cache, order-grid
+    validation, status lifecycle + freeze cascade, config history. REST at
+    /v1/market. Public read endpoints.
+  - Next: matching engine (05, pure in-memory deterministic), then order (04,
+    intake + hold via ledger), then settlement (06, trade → ledger).
 
 ## Layout
 ```
