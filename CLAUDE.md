@@ -45,7 +45,7 @@ docker compose -f docker-compose.dev.yml --profile app up --build  # packaged ap
 - Health `/q/health` · metrics `/q/metrics`.
 
 ## Git & GitHub
-- Remote: `https://github.com/koriebruh/Kyra-Exchange` (HTTPS + gh CLI credentials, account `koriebruh`). This machine's SSH key belongs to a different account — never switch the remote to SSH.
+- Remote: `git@github-koriebruh:koriebruh/Kyra-Exchange.git` — SSH host alias `github-koriebruh` (see `~/.ssh/config`) using key `~/.ssh/id_ed25519_kyra` (no passphrase, registered to the `koriebruh` account). Plain `git push` works. Do not use `git@github.com:` directly — the default SSH key belongs to a different GitHub account.
 - NEVER push without the user's confirmation.
 - LICENSE is proprietary — never replace it with an open-source license.
 
