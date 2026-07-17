@@ -22,3 +22,6 @@ secrets/
 # Logs & temp
 *.log
 .DS_Store
+
+# Quarkus CLI artifacts
+.quarkus/

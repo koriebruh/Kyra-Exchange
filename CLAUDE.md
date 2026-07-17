@@ -1,0 +1,55 @@
+# Kyra Exchange — Context for Claude
+
+Production crypto exchange (real money, foundation of the owner's company — NOT a learning project).
+Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
+
+## Design source of truth
+- `kyra-doc/README.md` — architecture, 10 non-negotiable principles, 7 build phases with exit criteria, technical & API conventions
+- `kyra-doc/modules/01..18-*.md` — detailed spec per module (features, flows, data model, edge cases, testing). **Read the module spec BEFORE implementing that module.**
+- `kyra-doc/adr/` — architecture decisions. New significant decision = write a new ADR.
+
+## Status (update when a phase completes)
+- Phase 0 (skeleton) DONE: multi-module build green, compose stack runs, health UP, ArchUnit boundaries enforced.
+- Next: Phase 1 — identity (auth) + account (double-entry ledger). Specs: modules/01 & 02.
+
+## Layout
+```
+kyra-common/      shared kernel: Money, AssetId, PairSymbol, EventEnvelope, Result, Ids (ULID)
+modules/<name>/   14 domain modules; packages api/ (public) | domain/ | infra/ (internal)
+kyra-app/         Quarkus app wiring; application.properties; db/migration; ArchUnit + smoke tests
+kyra-doc/         all specs + ADRs
+```
+
+## Hard rules (enforced by tests/review — never violate)
+1. A module may only reference a neighbor module's `api` package (ArchUnit `ModuleBoundaryTest`).
+2. Money = `Money`/BigDecimal. double/float for monetary values is FORBIDDEN.
+3. Balances = double-entry ledger (account module). No balance column is ever UPDATEd without a journal.
+4. One Postgres schema per module; cross-schema FKs forbidden. Flyway numbering: `V<module*100+seq>__desc.sql` (identity=1xx, account=2xx, …).
+5. Events use `EventEnvelope` + `trace_context`; written to the outbox in the same transaction as the data mutation.
+6. Valkey = disposable cache only, never a source of truth.
+7. Money/order endpoints are idempotent; IDs are ULIDs (`Ids.newUlid()`).
+8. Never log PII/secrets; API errors never leak internals (see kyra-doc/modules/18).
+9. Matching engine must be deterministic — no wall-clock/Random in domain logic.
+
+## Build & run (this WSL environment)
+```bash
+export JAVA_HOME=~/jdks/jdk-21.0.11+10 && export PATH=$JAVA_HOME/bin:$PATH   # REQUIRED: system java = 25, project = 21
+./mvnw verify                              # build + tests (Dev Services need Docker)
+./mvnw -DskipTests install                 # once, before first dev-mode run
+./mvnw -f kyra-app/pom.xml quarkus:dev     # dev mode (do NOT use -pl without -am)
+docker compose -f docker-compose.dev.yml up                        # Postgres+Valkey
+docker compose -f docker-compose.dev.yml --profile obs up          # + Grafana/OTLP :3000
+docker compose -f docker-compose.dev.yml --profile app up --build  # packaged app (package first)
+```
+- Quarkus CLI: via jbang (`~/.jbang/bin/quarkus`, v3.37.3). The `/usr/local/bin/quarkus` symlink is BROKEN — do not use it.
+- Health `/q/health` · metrics `/q/metrics`.
+
+## Git & GitHub
+- Remote: `https://github.com/koriebruh/Kyra-Exchange` (HTTPS + gh CLI credentials, account `koriebruh`). This machine's SSH key belongs to a different account — never switch the remote to SSH.
+- NEVER push without the user's confirmation.
+- LICENSE is proprietary — never replace it with an open-source license.
+
+## Working conventions with the user
+- Conversation language: Indonesian. This is a serious product — the user demands rigor: re-check completeness, don't miss logic/edge cases, and always verify things actually run (not just compile) before claiming done.
+- Build phases are sequential; each phase has exit criteria in kyra-doc/README.md §5 — meet and prove them before moving on.
+- Custody = Fystack (verify their current API docs before implementing the wallet module). Indonesian compliance = OJK/PFAK; tax = module 15.

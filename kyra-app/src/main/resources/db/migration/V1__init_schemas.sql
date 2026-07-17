@@ -1,0 +1,18 @@
+-- Kyra Exchange: one Postgres schema per module (kyra-doc README §7).
+-- Cross-schema foreign keys are forbidden; modules talk via APIs, not joins.
+
+CREATE SCHEMA IF NOT EXISTS identity;
+CREATE SCHEMA IF NOT EXISTS account;
+CREATE SCHEMA IF NOT EXISTS market;
+CREATE SCHEMA IF NOT EXISTS orders;
+CREATE SCHEMA IF NOT EXISTS matching;
+CREATE SCHEMA IF NOT EXISTS settlement;
+CREATE SCHEMA IF NOT EXISTS marketdata;
+CREATE SCHEMA IF NOT EXISTS wallet;
+CREATE SCHEMA IF NOT EXISTS risk;
+CREATE SCHEMA IF NOT EXISTS compliance;
+CREATE SCHEMA IF NOT EXISTS fee;
+CREATE SCHEMA IF NOT EXISTS admin_ops;
+CREATE SCHEMA IF NOT EXISTS notification;
+CREATE SCHEMA IF NOT EXISTS liquidity;
+CREATE SCHEMA IF NOT EXISTS tax;
