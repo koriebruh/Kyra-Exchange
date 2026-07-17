@@ -29,10 +29,14 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
     invariant already covered by account tests.
 - Phase 2 in progress:
   - market (modules/03) DONE — asset/pair registry, in-memory cache, order-grid
-    validation, status lifecycle + freeze cascade, config history. REST at
-    /v1/market. Public read endpoints.
-  - Next: matching engine (05, pure in-memory deterministic), then order (04,
-    intake + hold via ledger), then settlement (06, trade → ledger).
+    validation, status lifecycle + freeze cascade, config history. REST /v1/market.
+  - matching engine CORE (modules/05) DONE — pure deterministic OrderBook
+    (price/time priority, LIMIT/MARKET x GTC/IOC/FOK, self-trade prevention,
+    integer ticks/steps). api types: MatchCommand, MatchEvent. NOT yet wired:
+    sequencing, event-log/snapshot persistence, per-pair threading, recovery.
+  - Next: (a) matching persistence + sequencer + recovery; (b) order module (04)
+    intake → validate (market) → hold (account) → submit to engine; (c)
+    settlement (06) consume TradeExecuted → ledger journal (multi-asset, tested).
 
 ## Layout
 ```
