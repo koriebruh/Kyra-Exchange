@@ -40,11 +40,15 @@ public final class OrderBook {
         long remaining;
 
         BookOrder(MatchCommand cmd, long remaining) {
-            this.orderId = cmd.orderId();
-            this.userId = cmd.userId();
-            this.side = cmd.side();
-            this.priceTicks = cmd.priceTicks();
-            this.seq = cmd.seq();
+            this(cmd.orderId(), cmd.userId(), cmd.side(), cmd.priceTicks(), cmd.seq(), remaining);
+        }
+
+        BookOrder(String orderId, String userId, OrderSide side, long priceTicks, long seq, long remaining) {
+            this.orderId = orderId;
+            this.userId = userId;
+            this.side = side;
+            this.priceTicks = priceTicks;
+            this.seq = seq;
             this.remaining = remaining;
         }
     }
@@ -120,6 +124,18 @@ public final class OrderBook {
             }
         }
         return Optional.of(new MatchEvent.OrderCanceled(orderId, order.remaining, reason));
+    }
+
+    /**
+     * Re-insert a resting order without matching (startup recovery). Callers must
+     * restore in ascending seq order so FIFO within a price level is preserved.
+     */
+    public void restore(String orderId, String userId, OrderSide side, long priceTicks,
+            long remainingSteps, long seq) {
+        BookOrder order = new BookOrder(orderId, userId, side, priceTicks, seq, remainingSteps);
+        TreeMap<Long, Deque<BookOrder>> b = (side == OrderSide.BUY) ? bids : asks;
+        b.computeIfAbsent(priceTicks, k -> new ArrayDeque<>()).addLast(order);
+        byId.put(orderId, order);
     }
 
     public boolean contains(String orderId) {
