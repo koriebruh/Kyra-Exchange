@@ -30,13 +30,21 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
 - Phase 2 in progress:
   - market (modules/03) DONE — asset/pair registry, in-memory cache, order-grid
     validation, status lifecycle + freeze cascade, config history. REST /v1/market.
-  - matching engine CORE (modules/05) DONE — pure deterministic OrderBook
-    (price/time priority, LIMIT/MARKET x GTC/IOC/FOK, self-trade prevention,
-    integer ticks/steps). api types: MatchCommand, MatchEvent. NOT yet wired:
-    sequencing, event-log/snapshot persistence, per-pair threading, recovery.
-  - Next: (a) matching persistence + sequencer + recovery; (b) order module (04)
-    intake → validate (market) → hold (account) → submit to engine; (c)
-    settlement (06) consume TradeExecuted → ledger journal (multi-asset, tested).
+  - matching (modules/05) DONE — pure deterministic OrderBook + MatchingEngine
+    service (per-pair single writer, sequencer, restoreResting for recovery).
+  - settlement (modules/06) DONE — TradeSettlement → one balanced ledger journal,
+    idempotent by tradeId, trades table.
+  - order (modules/04) DONE (LIMIT GTC/IOC/FOK) — intake, validate (market),
+    hold (account), submit (engine), settle each trade, update maker+taker state,
+    release over-hold/remainder. Per-pair serialized (lock + programmatic tx).
+    End-to-end tested: two accounts trade, price improvement release, partial
+    fill, cancel, IOC expiry, insufficient-balance/off-grid/dup-client rejects.
+  - PHASE 2 EXIT CRITERIA MET at service level (two accounts trade).
+  - Not yet built (phase-2 completion): MARKET orders (need quote-budget for
+    market-buy), STOP/OCO (04 trigger engine), order REST endpoints in kyra-app,
+    marketdata (07: candles/ticker/depth/WS), matching event-log recovery
+    (currently rebuild from open-orders table on startup). These are planned
+    next steps, not blocked.
 
 ## Layout
 ```
