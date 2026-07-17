@@ -5,6 +5,7 @@ import com.kyra.identity.api.AuthenticationException;
 import com.kyra.identity.api.InvalidRegistrationException;
 
 import io.opentelemetry.api.trace.Span;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.Provider;
@@ -33,6 +34,11 @@ public class GlobalExceptionMapper implements ExceptionMapper<Throwable> {
                     build(Response.Status.BAD_REQUEST, InvalidRegistrationException.CODE, e.getMessage(), traceId);
             case IllegalArgumentException e ->
                     build(Response.Status.BAD_REQUEST, "INVALID_REQUEST", e.getMessage(), traceId);
+            case WebApplicationException e ->
+                    // Preserve the intended HTTP status (404, 405, …) with a generic message.
+                    Response.fromResponse(e.getResponse())
+                            .entity(ApiError.of(statusCode(e), safeMessage(e), traceId))
+                            .build();
             default -> {
                 // Unknown = potential bug. Log the detail, return an opaque 500.
                 LOG.errorf(ex, "unhandled exception [traceId=%s]", traceId);
@@ -44,5 +50,16 @@ public class GlobalExceptionMapper implements ExceptionMapper<Throwable> {
 
     private static Response build(Response.Status status, String code, String message, String traceId) {
         return Response.status(status).entity(ApiError.of(code, message, traceId)).build();
+    }
+
+    private static String statusCode(WebApplicationException e) {
+        Response.Status s = Response.Status.fromStatusCode(e.getResponse().getStatus());
+        return s != null ? s.name() : "HTTP_" + e.getResponse().getStatus();
+    }
+
+    /** Reason-phrase-level message only; never the exception detail (may carry internals). */
+    private static String safeMessage(WebApplicationException e) {
+        Response.Status s = Response.Status.fromStatusCode(e.getResponse().getStatus());
+        return s != null ? s.getReasonPhrase() : "Request failed.";
     }
 }
