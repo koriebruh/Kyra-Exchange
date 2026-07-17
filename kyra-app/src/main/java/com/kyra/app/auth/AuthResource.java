@@ -1,5 +1,9 @@
 package com.kyra.app.auth;
 
+import com.kyra.identity.api.ApiKeyApi;
+import com.kyra.identity.api.ApiKeyCreated;
+import com.kyra.identity.api.ApiKeyScope;
+import com.kyra.identity.api.ApiKeyView;
 import com.kyra.identity.api.DeviceInfo;
 import com.kyra.identity.api.EmailAlreadyRegisteredException;
 import com.kyra.identity.api.IdentityApi;
@@ -9,6 +13,10 @@ import com.kyra.identity.api.SessionView;
 import com.kyra.identity.api.TokenPair;
 import com.kyra.identity.api.TwoFactorApi;
 import com.kyra.identity.api.TwoFactorEnrollment;
+
+import java.util.EnumSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import io.quarkus.security.Authenticated;
 import jakarta.annotation.security.PermitAll;
@@ -39,11 +47,13 @@ public class AuthResource {
 
     private final IdentityApi identity;
     private final TwoFactorApi twoFactor;
+    private final ApiKeyApi apiKeys;
     private final JsonWebToken jwt;
 
-    public AuthResource(IdentityApi identity, TwoFactorApi twoFactor, JsonWebToken jwt) {
+    public AuthResource(IdentityApi identity, TwoFactorApi twoFactor, ApiKeyApi apiKeys, JsonWebToken jwt) {
         this.identity = identity;
         this.twoFactor = twoFactor;
+        this.apiKeys = apiKeys;
         this.jwt = jwt;
     }
 
@@ -81,6 +91,16 @@ public class AuthResource {
     }
 
     public record MessageResponse(String message) {
+    }
+
+    public record CreateApiKeyRequest(String label, Set<String> scopes, java.util.List<String> ipWhitelist) {
+    }
+
+    public record ApiKeyCreatedResponse(String keyId, String secret, Set<String> scopes) {
+        static ApiKeyCreatedResponse from(ApiKeyCreated c) {
+            return new ApiKeyCreatedResponse(c.keyId(), c.secret(),
+                    c.scopes().stream().map(Enum::name).collect(Collectors.toSet()));
+        }
     }
 
     @POST
@@ -177,6 +197,32 @@ public class AuthResource {
     @Authenticated
     public Response revokeSession(@PathParam("id") String sessionId) {
         identity.revokeSession(jwt.getSubject(), sessionId);
+        return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/api-keys")
+    @Authenticated
+    public ApiKeyCreatedResponse createApiKey(CreateApiKeyRequest req) {
+        Set<ApiKeyScope> scopes = req.scopes() == null ? EnumSet.noneOf(ApiKeyScope.class)
+                : req.scopes().stream().map(s -> ApiKeyScope.valueOf(s.toUpperCase()))
+                        .collect(Collectors.toCollection(() -> EnumSet.noneOf(ApiKeyScope.class)));
+        return ApiKeyCreatedResponse.from(
+                apiKeys.create(jwt.getSubject(), req.label(), scopes, req.ipWhitelist()));
+    }
+
+    @GET
+    @Path("/api-keys")
+    @Authenticated
+    public java.util.List<ApiKeyView> listApiKeys() {
+        return apiKeys.list(jwt.getSubject());
+    }
+
+    @DELETE
+    @Path("/api-keys/{keyId}")
+    @Authenticated
+    public Response revokeApiKey(@PathParam("keyId") String keyId) {
+        apiKeys.revoke(jwt.getSubject(), keyId);
         return Response.noContent().build();
     }
 

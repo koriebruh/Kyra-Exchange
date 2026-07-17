@@ -17,8 +17,11 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
     JWT (RS256) + refresh rotation + reuse detection, sessions, 2FA TOTP
     (enroll/confirm/disable, recovery codes, two-step login), AES-GCM at-rest
     secret encryption. REST at /v1/auth.
-  - Remaining phase 1: API keys (HMAC), captcha, anti-phishing code, audit-log
-    framework. Then close phase 1 per README §5 exit criteria.
+  - API keys (HMAC, modules/01 F4) DONE — create/list/revoke, signed-request
+    auth (timestamp window, scopes, IP whitelist, encrypted secret). REST at
+    /v1/auth/api-keys.
+  - Remaining phase 1: captcha + anti-phishing code (UI/external-coupled),
+    audit-log framework. Then close phase 1 per README §5 exit criteria.
 
 ## Layout
 ```
