@@ -20,8 +20,14 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
   - API keys (HMAC, modules/01 F4) DONE — create/list/revoke, signed-request
     auth (timestamp window, scopes, IP whitelist, encrypted secret). REST at
     /v1/auth/api-keys.
-  - Remaining phase 1: captcha + anti-phishing code (UI/external-coupled),
-    audit-log framework. Then close phase 1 per README §5 exit criteria.
+  - Audit-log framework DONE — kyra-app audit schema (append-only), AuditLog
+    service, wired to API-key + 2FA actions.
+  - Remaining phase 1 (deferred, need other pieces first): captcha (needs
+    frontend + Turnstile), anti-phishing code (needs notification module email
+    templating), login/register audit hooks. Property-test ledger + no-negative
+    invariant already covered by account tests.
+- Next: close phase 1 stragglers OR start Phase 2 (market + order + matching +
+  settlement) per kyra-doc/modules 03-06. Ledger (02) is ready to build on.
 
 ## Layout
 ```
