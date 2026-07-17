@@ -48,12 +48,15 @@ public class AuthResource {
     private final IdentityApi identity;
     private final TwoFactorApi twoFactor;
     private final ApiKeyApi apiKeys;
+    private final com.kyra.app.audit.AuditLog audit;
     private final JsonWebToken jwt;
 
-    public AuthResource(IdentityApi identity, TwoFactorApi twoFactor, ApiKeyApi apiKeys, JsonWebToken jwt) {
+    public AuthResource(IdentityApi identity, TwoFactorApi twoFactor, ApiKeyApi apiKeys,
+            com.kyra.app.audit.AuditLog audit, JsonWebToken jwt) {
         this.identity = identity;
         this.twoFactor = twoFactor;
         this.apiKeys = apiKeys;
+        this.audit = audit;
         this.jwt = jwt;
     }
 
@@ -159,6 +162,7 @@ public class AuthResource {
     @Authenticated
     public Response confirm2fa(TwoFactorCodeRequest req) {
         twoFactor.confirm(jwt.getSubject(), req.code());
+        audit.record(jwt.getSubject(), "TWO_FACTOR_ENABLED", null);
         return Response.ok(new MessageResponse("Two-factor authentication enabled.")).build();
     }
 
@@ -167,6 +171,7 @@ public class AuthResource {
     @Authenticated
     public Response disable2fa(TwoFactorCodeRequest req) {
         twoFactor.disable(jwt.getSubject(), req.code());
+        audit.record(jwt.getSubject(), "TWO_FACTOR_DISABLED", null);
         return Response.ok(new MessageResponse("Two-factor authentication disabled.")).build();
     }
 
@@ -207,8 +212,11 @@ public class AuthResource {
         Set<ApiKeyScope> scopes = req.scopes() == null ? EnumSet.noneOf(ApiKeyScope.class)
                 : req.scopes().stream().map(s -> ApiKeyScope.valueOf(s.toUpperCase()))
                         .collect(Collectors.toCollection(() -> EnumSet.noneOf(ApiKeyScope.class)));
-        return ApiKeyCreatedResponse.from(
+        ApiKeyCreatedResponse created = ApiKeyCreatedResponse.from(
                 apiKeys.create(jwt.getSubject(), req.label(), scopes, req.ipWhitelist()));
+        audit.record(jwt.getSubject(), "API_KEY_CREATED", "api_key", created.keyId(), null,
+                String.join(",", created.scopes()));
+        return created;
     }
 
     @GET
@@ -223,6 +231,7 @@ public class AuthResource {
     @Authenticated
     public Response revokeApiKey(@PathParam("keyId") String keyId) {
         apiKeys.revoke(jwt.getSubject(), keyId);
+        audit.record(jwt.getSubject(), "API_KEY_REVOKED", "api_key", keyId, null, null);
         return Response.noContent().build();
     }
 
