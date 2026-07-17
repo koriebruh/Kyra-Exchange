@@ -11,6 +11,8 @@ import com.kyra.identity.api.TokenPair;
 
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
@@ -29,8 +31,19 @@ class IdentityServiceTest {
     @Inject
     IdentityApi identity;
 
+    @Inject
+    EntityManager em;
+
     private String uniqueEmail() {
         return "user-" + UUID.randomUUID() + "@kyra.test";
+    }
+
+    @Transactional
+    void setStatus(String userId, String status) {
+        em.createNativeQuery("update identity.users set status = :s where id = :id")
+                .setParameter("s", status)
+                .setParameter("id", userId)
+                .executeUpdate();
     }
 
     private String registerAndVerify(String email, String password) {
@@ -135,6 +148,24 @@ class IdentityServiceTest {
 
         identity.revokeSession(userId, sessions.get(0).sessionId());
         assertEquals(1, identity.sessions(userId).size());
+    }
+
+    @Test
+    void suspendedUserCannotLogin() {
+        String email = uniqueEmail();
+        String userId = registerAndVerify(email, "supersecret-1");
+        setStatus(userId, "SUSPENDED");
+        assertThrows(AuthenticationException.class,
+                () -> identity.login(email, "supersecret-1".toCharArray(), DEVICE));
+    }
+
+    @Test
+    void emailIsCaseInsensitiveForDuplicates() {
+        String local = "Mixed-" + UUID.randomUUID();
+        identity.register(local + "@Kyra.Test", "supersecret-1".toCharArray());
+        // same address, different casing -> must be rejected as duplicate
+        assertThrows(EmailAlreadyRegisteredException.class,
+                () -> identity.register(local.toLowerCase() + "@kyra.test", "supersecret-1".toCharArray()));
     }
 
     @Test

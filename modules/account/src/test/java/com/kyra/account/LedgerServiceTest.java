@@ -94,6 +94,43 @@ class LedgerServiceTest {
     }
 
     @Test
+    void multiAssetSettlementJournalMovesBothAssetsAtomically() {
+        // Shape of a spot trade settlement (kyra-doc/modules/06): one journal,
+        // two assets, each netting to zero. Buyer pays USDT, receives BTC.
+        String buyer = newUser();
+        String seller = newUser();
+        deposit(buyer, Money.of("USDT", "50000"));
+        // seller holds 1 BTC (deposit then it sits in main; move to represent inventory)
+        ledger.post(new JournalRequest(JournalType.DEPOSIT, Ids.newUlid(), List.of(
+                EntryLine.of(AccountKey.external(AssetId.of("BTC")), Money.of("BTC", "1").negated()),
+                EntryLine.of(AccountKey.userMain(seller, AssetId.of("BTC")), Money.of("BTC", "1")))));
+
+        // Trade: 1 BTC @ 50000 USDT, no fee for simplicity.
+        String tradeRef = Ids.newUlid();
+        ledger.post(new JournalRequest(JournalType.TRADE_SETTLEMENT, tradeRef, List.of(
+                EntryLine.of(AccountKey.userMain(buyer, USDT), Money.of("USDT", "50000").negated()),
+                EntryLine.of(AccountKey.userMain(seller, USDT), Money.of("USDT", "50000")),
+                EntryLine.of(AccountKey.userMain(seller, AssetId.of("BTC")), Money.of("BTC", "1").negated()),
+                EntryLine.of(AccountKey.userMain(buyer, AssetId.of("BTC")), Money.of("BTC", "1")))));
+
+        assertEquals(Money.of("BTC", "1"), ledger.balanceOf(buyer, AssetId.of("BTC")).available());
+        assertEquals(Money.zero(USDT), ledger.balanceOf(buyer, USDT).available());
+        assertEquals(Money.of("USDT", "50000"), ledger.balanceOf(seller, USDT).available());
+        assertEquals(Money.zero(AssetId.of("BTC")), ledger.balanceOf(seller, AssetId.of("BTC")).available());
+    }
+
+    @Test
+    void multiAssetJournalRejectedIfEitherAssetUnbalanced() {
+        // BTC balanced, USDT off by 1 -> whole journal rejected before any write.
+        assertThrows(IllegalArgumentException.class, () -> new JournalRequest(
+                JournalType.TRADE_SETTLEMENT, Ids.newUlid(), List.of(
+                EntryLine.of(AccountKey.userMain(newUser(), USDT), Money.of("USDT", "100").negated()),
+                EntryLine.of(AccountKey.userMain(newUser(), USDT), Money.of("USDT", "99")),
+                EntryLine.of(AccountKey.external(AssetId.of("BTC")), Money.of("BTC", "1").negated()),
+                EntryLine.of(AccountKey.userMain(newUser(), AssetId.of("BTC")), Money.of("BTC", "1")))));
+    }
+
+    @Test
     void unbalancedJournalRejectedBeforeTouchingDb() {
         assertThrows(IllegalArgumentException.class, () -> new JournalRequest(
                 JournalType.DEPOSIT, Ids.newUlid(), List.of(

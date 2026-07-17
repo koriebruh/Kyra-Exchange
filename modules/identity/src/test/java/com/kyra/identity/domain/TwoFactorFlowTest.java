@@ -10,6 +10,8 @@ import com.kyra.identity.api.TwoFactorEnrollment;
 
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
@@ -34,6 +36,17 @@ class TwoFactorFlowTest {
 
     @Inject
     TotpService totp; // package-visible helper to compute a valid code
+
+    @Inject
+    EntityManager em;
+
+    /** Reset the replay watermark so the current code is usable (avoids waiting a step in tests). */
+    @Transactional
+    void resetStep(String userId) {
+        em.createNativeQuery("update identity.totp_secrets set last_used_step = 0 where user_id = :u")
+                .setParameter("u", userId)
+                .executeUpdate();
+    }
 
     private record Account(String email, String userId) {
     }
@@ -88,6 +101,35 @@ class TwoFactorFlowTest {
         String challenge2 = ((LoginResult.TwoFactorRequired) again).challengeToken();
         assertThrows(AuthenticationException.class,
                 () -> identity.loginTwoFactor(challenge2, recovery, DEVICE));
+    }
+
+    @Test
+    void confirmWithWrongCodeDoesNotEnable() {
+        Account acc = register();
+        twoFactor.enroll(acc.userId(), acc.email());
+        assertThrows(AuthenticationException.class, () -> twoFactor.confirm(acc.userId(), "000000"));
+        assertFalse(twoFactor.isEnabled(acc.userId()));
+        // login stays single-step while 2FA is unconfirmed
+        assertInstanceOf(LoginResult.Authenticated.class, identity.login(acc.email(), PW.toCharArray(), DEVICE));
+    }
+
+    @Test
+    void disableTurnsOffSecondFactor() {
+        Account acc = register();
+        TwoFactorEnrollment enroll = twoFactor.enroll(acc.userId(), acc.email());
+        twoFactor.confirm(acc.userId(), totp.currentCodeFor(enroll.secret()));
+        assertTrue(twoFactor.isEnabled(acc.userId()));
+
+        // wrong code cannot disable
+        assertThrows(AuthenticationException.class, () -> twoFactor.disable(acc.userId(), "000000"));
+        assertTrue(twoFactor.isEnabled(acc.userId()));
+
+        // confirm consumed the current step; reset the watermark so the current
+        // code is usable again, then disable with a valid code
+        resetStep(acc.userId());
+        twoFactor.disable(acc.userId(), totp.currentCodeFor(enroll.secret()));
+        assertFalse(twoFactor.isEnabled(acc.userId()));
+        assertInstanceOf(LoginResult.Authenticated.class, identity.login(acc.email(), PW.toCharArray(), DEVICE));
     }
 
     @Test
