@@ -218,6 +218,6 @@ VPS-3 (obs):   Prometheus, Alertmanager, Grafana, Loki, Tempo
 
 ---
 
-Utang teknis & pekerjaan yang ditunda (dengan alasan + referensi): [`TECHDEBT.md`](TECHDEBT.md).
+Fitur yang ditunda karena nunggu piece lain (FE, modul notification, dll): [`TECHDEBT.md`](TECHDEBT.md).
 
 *Dokumen per modul ada di [`modules/`](modules/). Mulai baca dari 01.*

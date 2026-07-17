@@ -7,7 +7,7 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
 - `kyra-doc/README.md` — architecture, 10 non-negotiable principles, 7 build phases with exit criteria, technical & API conventions
 - `kyra-doc/modules/01..18-*.md` — detailed spec per module (features, flows, data model, edge cases, testing). **Read the module spec BEFORE implementing that module.**
 - `kyra-doc/adr/` — architecture decisions. New significant decision = write a new ADR.
-- `kyra-doc/TECHDEBT.md` — deferred work with reasons + spec/code refs. Review at the start of each phase; when you build a deferred item, update/remove its entry.
+- `kyra-doc/TECHDEBT.md` — features deferred because they need another piece first (frontend, notification module, etc.), with the reason + spec ref. When you build one, remove its entry.
 
 ## Status (update when a phase completes)
 - Phase 0 (skeleton) DONE.
