@@ -6,6 +6,7 @@ import com.kyra.identity.api.DeviceInfo;
 import com.kyra.identity.api.EmailAlreadyRegisteredException;
 import com.kyra.identity.api.IdentityApi;
 import com.kyra.identity.api.InvalidRegistrationException;
+import com.kyra.identity.api.LoginResult;
 import com.kyra.identity.api.RegisterResult;
 import com.kyra.identity.api.SessionView;
 import com.kyra.identity.api.TokenPair;
@@ -42,12 +43,15 @@ public class IdentityService implements IdentityApi {
     private final PasswordHasher hasher;
     private final TokenService tokens;
     private final SessionRevoker revoker;
+    private final TwoFactorService twoFactor;
 
-    public IdentityService(EntityManager em, PasswordHasher hasher, TokenService tokens, SessionRevoker revoker) {
+    public IdentityService(EntityManager em, PasswordHasher hasher, TokenService tokens,
+            SessionRevoker revoker, TwoFactorService twoFactor) {
         this.em = em;
         this.hasher = hasher;
         this.tokens = tokens;
         this.revoker = revoker;
+        this.twoFactor = twoFactor;
     }
 
     @Override
@@ -109,14 +113,24 @@ public class IdentityService implements IdentityApi {
 
     @Override
     @Transactional
-    public TokenPair login(String email, char[] password, DeviceInfo device) {
+    public LoginResult login(String email, char[] password, DeviceInfo device) {
         UserEntity user = findByEmail(normalizeEmail(email));
         // Always run the hash to keep timing uniform whether or not the user exists.
         boolean ok = user != null && hasher.verify(password, user.passwordHash);
         if (!ok || user.status != UserEntity.Status.ACTIVE) {
             throw new AuthenticationException();
         }
-        return newSession(user.id, device);
+        if (twoFactor.isEnabled(user.id)) {
+            return LoginResult.challenge(twoFactor.createChallenge(user.id));
+        }
+        return LoginResult.of(newSession(user.id, device));
+    }
+
+    @Override
+    @Transactional
+    public TokenPair loginTwoFactor(String challengeToken, String code, DeviceInfo device) {
+        String userId = twoFactor.verifyChallenge(challengeToken, code);
+        return newSession(userId, device);
     }
 
     @Override

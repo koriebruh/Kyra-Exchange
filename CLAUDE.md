@@ -9,8 +9,16 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
 - `kyra-doc/adr/` — architecture decisions. New significant decision = write a new ADR.
 
 ## Status (update when a phase completes)
-- Phase 0 (skeleton) DONE: multi-module build green, compose stack runs, health UP, ArchUnit boundaries enforced.
-- Next: Phase 1 — identity (auth) + account (double-entry ledger). Specs: modules/01 & 02.
+- Phase 0 (skeleton) DONE.
+- Phase 1 in progress:
+  - account ledger (modules/02) DONE — double-entry, hold/release, idempotency,
+    race-safe, invariant + concurrency tests.
+  - identity (modules/01) core DONE — register, Argon2id, email verify, login,
+    JWT (RS256) + refresh rotation + reuse detection, sessions, 2FA TOTP
+    (enroll/confirm/disable, recovery codes, two-step login), AES-GCM at-rest
+    secret encryption. REST at /v1/auth.
+  - Remaining phase 1: API keys (HMAC), captcha, anti-phishing code, audit-log
+    framework. Then close phase 1 per README §5 exit criteria.
 
 ## Layout
 ```

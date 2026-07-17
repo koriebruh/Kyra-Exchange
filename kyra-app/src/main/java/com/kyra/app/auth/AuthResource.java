@@ -3,9 +3,12 @@ package com.kyra.app.auth;
 import com.kyra.identity.api.DeviceInfo;
 import com.kyra.identity.api.EmailAlreadyRegisteredException;
 import com.kyra.identity.api.IdentityApi;
+import com.kyra.identity.api.LoginResult;
 import com.kyra.identity.api.RegisterResult;
 import com.kyra.identity.api.SessionView;
 import com.kyra.identity.api.TokenPair;
+import com.kyra.identity.api.TwoFactorApi;
+import com.kyra.identity.api.TwoFactorEnrollment;
 
 import io.quarkus.security.Authenticated;
 import jakarta.annotation.security.PermitAll;
@@ -35,10 +38,12 @@ import java.util.List;
 public class AuthResource {
 
     private final IdentityApi identity;
+    private final TwoFactorApi twoFactor;
     private final JsonWebToken jwt;
 
-    public AuthResource(IdentityApi identity, JsonWebToken jwt) {
+    public AuthResource(IdentityApi identity, TwoFactorApi twoFactor, JsonWebToken jwt) {
         this.identity = identity;
+        this.twoFactor = twoFactor;
         this.jwt = jwt;
     }
 
@@ -54,9 +59,24 @@ public class AuthResource {
     public record RefreshRequest(String refreshToken) {
     }
 
+    public record TwoFactorLoginRequest(String challengeToken, String code) {
+    }
+
+    public record TwoFactorCodeRequest(String code) {
+    }
+
     public record TokenResponse(String accessToken, String refreshToken, long expiresInSeconds) {
         static TokenResponse from(TokenPair p) {
             return new TokenResponse(p.accessToken(), p.refreshToken(), p.expiresInSeconds());
+        }
+    }
+
+    public record TwoFactorChallengeResponse(boolean twoFactorRequired, String challengeToken) {
+    }
+
+    public record EnrollResponse(String secret, String provisioningUri, java.util.List<String> recoveryCodes) {
+        static EnrollResponse from(TwoFactorEnrollment e) {
+            return new EnrollResponse(e.secret(), e.provisioningUri(), e.recoveryCodes());
         }
     }
 
@@ -90,9 +110,44 @@ public class AuthResource {
     @POST
     @Path("/login")
     @PermitAll
-    public TokenResponse login(LoginRequest req, @Context HttpHeaders headers) {
-        TokenPair pair = identity.login(chars(req.email()), req.password().toCharArray(), device(headers));
-        return TokenResponse.from(pair);
+    public Response login(LoginRequest req, @Context HttpHeaders headers) {
+        LoginResult result = identity.login(chars(req.email()), req.password().toCharArray(), device(headers));
+        return switch (result) {
+            case LoginResult.Authenticated a -> Response.ok(TokenResponse.from(a.tokens())).build();
+            case LoginResult.TwoFactorRequired c ->
+                    Response.ok(new TwoFactorChallengeResponse(true, c.challengeToken())).build();
+        };
+    }
+
+    @POST
+    @Path("/login/2fa")
+    @PermitAll
+    public TokenResponse loginTwoFactor(TwoFactorLoginRequest req, @Context HttpHeaders headers) {
+        return TokenResponse.from(
+                identity.loginTwoFactor(req.challengeToken(), req.code(), device(headers)));
+    }
+
+    @POST
+    @Path("/2fa/enroll")
+    @Authenticated
+    public EnrollResponse enroll2fa() {
+        return EnrollResponse.from(twoFactor.enroll(jwt.getSubject(), jwt.getSubject()));
+    }
+
+    @POST
+    @Path("/2fa/confirm")
+    @Authenticated
+    public Response confirm2fa(TwoFactorCodeRequest req) {
+        twoFactor.confirm(jwt.getSubject(), req.code());
+        return Response.ok(new MessageResponse("Two-factor authentication enabled.")).build();
+    }
+
+    @POST
+    @Path("/2fa/disable")
+    @Authenticated
+    public Response disable2fa(TwoFactorCodeRequest req) {
+        twoFactor.disable(jwt.getSubject(), req.code());
+        return Response.ok(new MessageResponse("Two-factor authentication disabled.")).build();
     }
 
     @POST

@@ -5,6 +5,7 @@ import com.kyra.identity.api.DeviceInfo;
 import com.kyra.identity.api.EmailAlreadyRegisteredException;
 import com.kyra.identity.api.IdentityApi;
 import com.kyra.identity.api.InvalidRegistrationException;
+import com.kyra.identity.api.LoginResult;
 import com.kyra.identity.api.RegisterResult;
 import com.kyra.identity.api.TokenPair;
 
@@ -38,6 +39,11 @@ class IdentityServiceTest {
         return r.userId();
     }
 
+    private TokenPair loginTokens(String email, String password) {
+        LoginResult result = identity.login(email, password.toCharArray(), DEVICE);
+        return ((LoginResult.Authenticated) result).tokens();
+    }
+
     @Test
     void cannotLoginBeforeEmailVerified() {
         String email = uniqueEmail();
@@ -51,7 +57,7 @@ class IdentityServiceTest {
         String email = uniqueEmail();
         registerAndVerify(email, "supersecret-1");
 
-        TokenPair pair = identity.login(email, "supersecret-1".toCharArray(), DEVICE);
+        TokenPair pair = loginTokens(email, "supersecret-1");
         assertNotNull(pair.accessToken());
         assertNotNull(pair.refreshToken());
         assertTrue(pair.expiresInSeconds() > 0);
@@ -85,7 +91,7 @@ class IdentityServiceTest {
     void refreshRotatesTokenAndOldOneStopsWorking() {
         String email = uniqueEmail();
         registerAndVerify(email, "supersecret-1");
-        TokenPair first = identity.login(email, "supersecret-1".toCharArray(), DEVICE);
+        TokenPair first = loginTokens(email, "supersecret-1");
 
         TokenPair second = identity.refresh(first.refreshToken(), DEVICE);
         assertNotEquals(first.refreshToken(), second.refreshToken());
@@ -98,7 +104,7 @@ class IdentityServiceTest {
     void reusingRotatedTokenRevokesSession() {
         String email = uniqueEmail();
         registerAndVerify(email, "supersecret-1");
-        TokenPair first = identity.login(email, "supersecret-1".toCharArray(), DEVICE);
+        TokenPair first = loginTokens(email, "supersecret-1");
         TokenPair second = identity.refresh(first.refreshToken(), DEVICE);
 
         // attacker replays the stolen (old) token -> triggers family revocation
@@ -111,7 +117,7 @@ class IdentityServiceTest {
     void logoutInvalidatesRefresh() {
         String email = uniqueEmail();
         registerAndVerify(email, "supersecret-1");
-        TokenPair pair = identity.login(email, "supersecret-1".toCharArray(), DEVICE);
+        TokenPair pair = loginTokens(email, "supersecret-1");
 
         identity.logout(pair.refreshToken());
         assertThrows(AuthenticationException.class, () -> identity.refresh(pair.refreshToken(), DEVICE));

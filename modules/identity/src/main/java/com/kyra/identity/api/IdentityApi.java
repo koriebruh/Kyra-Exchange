@@ -22,13 +22,21 @@ public interface IdentityApi {
     void verifyEmail(String token);
 
     /**
-     * Authenticate. On success issues an access + refresh token pair bound to a
-     * new session.
+     * Authenticate with a password. If 2FA is enabled the result is a challenge
+     * to be completed via {@link #loginTwoFactor}; otherwise tokens are issued.
      *
      * @throws AuthenticationException if credentials are invalid or the account
      *                                 is not active
      */
-    TokenPair login(String email, char[] password, DeviceInfo device);
+    LoginResult login(String email, char[] password, DeviceInfo device);
+
+    /**
+     * Complete a 2FA login by presenting the challenge from {@link #login} plus
+     * a valid TOTP or recovery code.
+     *
+     * @throws AuthenticationException if the challenge or code is invalid/expired
+     */
+    TokenPair loginTwoFactor(String challengeToken, String code, DeviceInfo device);
 
     /**
      * Exchange a refresh token for a fresh pair, rotating the old one. Detecting
