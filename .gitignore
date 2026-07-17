@@ -25,3 +25,6 @@ secrets/
 
 # Quarkus CLI artifacts
 .quarkus/
+
+# jqwik
+.jqwik-database
