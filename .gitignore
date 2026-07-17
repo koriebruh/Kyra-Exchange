@@ -18,6 +18,10 @@ build/
 *.key
 secrets/
 !*.sops.*
+# Exception: DEV-ONLY JWT keys for local/test. Prod keys come from secrets,
+# are injected via env/SOPS, and are NEVER committed.
+!**/resources/jwt/*.pem
+!**/resources/**/jwt/*.pem
 
 # Logs & temp
 *.log
