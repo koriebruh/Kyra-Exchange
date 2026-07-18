@@ -52,6 +52,9 @@ class OrderFlowTest {
     @Inject
     MarketApi market;
 
+    @Inject
+    com.kyra.compliance.api.ComplianceApi compliance;
+
     private record Fixture(PairSymbol pair, AssetId base, AssetId quote) {
     }
 
@@ -173,6 +176,17 @@ class OrderFlowTest {
         OrderView buy = place(f, buyer, OrderSide.BUY, "45000", "1", TimeInForce.IOC);
         assertEquals(OrderStatus.EXPIRED, buy.status());
         assertEquals(Money.of(f.quote(), bd("100000")), ledger.balanceOf(buyer, f.quote()).available());
+        assertEquals(Money.zero(f.quote()), ledger.balanceOf(buyer, f.quote()).onHold());
+    }
+
+    @Test
+    void frozenAccountCannotPlaceOrder() {
+        Fixture f = freshMarket();
+        String buyer = funded(f.quote(), "100000");
+        compliance.freezeAccount(buyer, "admin hold");
+        OrderRejectedException ex = assertThrows(OrderRejectedException.class,
+                () -> place(f, buyer, OrderSide.BUY, "40000", "1", TimeInForce.GTC));
+        assertEquals("ACCOUNT_FROZEN", ex.code());
         assertEquals(Money.zero(f.quote()), ledger.balanceOf(buyer, f.quote()).onHold());
     }
 

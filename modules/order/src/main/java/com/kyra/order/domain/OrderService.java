@@ -5,6 +5,7 @@ import com.kyra.common.id.Ids;
 import com.kyra.common.money.AssetId;
 import com.kyra.common.money.Money;
 import com.kyra.common.money.PairSymbol;
+import com.kyra.compliance.api.ComplianceApi;
 import com.kyra.fee.api.FeeApi;
 import com.kyra.fee.api.FeeRates;
 import com.kyra.fee.api.Fees;
@@ -58,11 +59,13 @@ public class OrderService implements OrderApi {
     private final SettlementApi settlement;
     private final FeeApi fees;
     private final RiskApi risk;
+    private final ComplianceApi compliance;
 
     private final ConcurrentMap<String, Object> pairLocks = new ConcurrentHashMap<>();
 
     public OrderService(EntityManager em, MarketApi market, AccountApi ledger,
-            MatchingEngineApi engine, SettlementApi settlement, FeeApi fees, RiskApi risk) {
+            MatchingEngineApi engine, SettlementApi settlement, FeeApi fees, RiskApi risk,
+            ComplianceApi compliance) {
         this.em = em;
         this.market = market;
         this.ledger = ledger;
@@ -70,6 +73,7 @@ public class OrderService implements OrderApi {
         this.settlement = settlement;
         this.fees = fees;
         this.risk = risk;
+        this.compliance = compliance;
     }
 
     @Override
@@ -119,6 +123,10 @@ public class OrderService implements OrderApi {
             if (existing != null) {
                 return view(existing);
             }
+        }
+
+        if (compliance.isFrozen(cmd.userId())) {
+            throw new OrderRejectedException("ACCOUNT_FROZEN", "account is frozen");
         }
 
         Pair pair = market.pair(cmd.pair())
