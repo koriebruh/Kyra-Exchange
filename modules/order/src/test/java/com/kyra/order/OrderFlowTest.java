@@ -93,9 +93,11 @@ class OrderFlowTest {
         OrderView buy = place(f, buyer, OrderSide.BUY, "50000", "1", TimeInForce.GTC);
         assertEquals(OrderStatus.FILLED, buy.status());
 
-        assertEquals(Money.of(f.base(), bd("1")), ledger.balanceOf(buyer, f.base()).available());
+        // buyer is taker (0.15%): receives 1 - 0.0015 = 0.9985 base; seller is maker
+        // (0.1%): receives 50000 - 50 = 49950 quote. Holds fully consumed.
+        assertEquals(Money.of(f.base(), bd("0.9985")), ledger.balanceOf(buyer, f.base()).available());
         assertEquals(Money.of(f.quote(), bd("50000")), ledger.balanceOf(buyer, f.quote()).available());
-        assertEquals(Money.of(f.quote(), bd("50000")), ledger.balanceOf(seller, f.quote()).available());
+        assertEquals(Money.of(f.quote(), bd("49950")), ledger.balanceOf(seller, f.quote()).available());
         assertEquals(Money.zero(f.base()), ledger.balanceOf(seller, f.base()).onHold());
         assertEquals(Money.zero(f.quote()), ledger.balanceOf(buyer, f.quote()).onHold());
     }

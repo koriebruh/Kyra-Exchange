@@ -56,7 +56,7 @@ class SettlementServiceTest {
         ledger.hold(seller, Money.of("BTC", "1"), Ids.newUlid());
 
         settlement.settle(new TradeSettlement(Ids.newUlid(), PAIR, buyer, seller,
-                Money.of("BTC", "1"), Money.of("USDT", "50000")));
+                Money.of("BTC", "1"), Money.of("USDT", "50000"), Money.zero(BTC), Money.zero(USDT)));
 
         // buyer received BTC, no USDT left held; seller received USDT, no BTC left held
         assertEquals(Money.of("BTC", "1"), ledger.balanceOf(buyer, BTC).available());
@@ -76,7 +76,7 @@ class SettlementServiceTest {
 
         String tradeId = Ids.newUlid();
         TradeSettlement t = new TradeSettlement(tradeId, PAIR, buyer, seller,
-                Money.of("BTC", "1"), Money.of("USDT", "50000"));
+                Money.of("BTC", "1"), Money.of("USDT", "50000"), Money.zero(BTC), Money.zero(USDT));
         settlement.settle(t);
         settlement.settle(t); // replay
 
@@ -94,10 +94,40 @@ class SettlementServiceTest {
         ledger.hold(seller, Money.of("BTC", "0.5"), Ids.newUlid());
 
         settlement.settle(new TradeSettlement(Ids.newUlid(), PAIR, buyer, seller,
-                Money.of("BTC", "0.5"), Money.of("USDT", "30000")));
+                Money.of("BTC", "0.5"), Money.of("USDT", "30000"), Money.zero(BTC), Money.zero(USDT)));
 
         assertEquals(0, assetSum("BTC").signum(), "BTC entries must net to zero");
         assertEquals(0, assetSum("USDT").signum(), "USDT entries must net to zero");
+    }
+
+    @Test
+    void feeIsDeductedFromReceivedAndCreditedToExchange() {
+        String buyer = Ids.newUlid();
+        String seller = Ids.newUlid();
+        deposit(buyer, Money.of("USDT", "50000"));
+        ledger.hold(buyer, Money.of("USDT", "50000"), Ids.newUlid());
+        deposit(seller, Money.of("BTC", "1"));
+        ledger.hold(seller, Money.of("BTC", "1"), Ids.newUlid());
+
+        // buyer pays 0.001 BTC fee on received base; seller pays 50 USDT fee on received quote
+        settlement.settle(new TradeSettlement(Ids.newUlid(), PAIR, buyer, seller,
+                Money.of("BTC", "1"), Money.of("USDT", "50000"),
+                Money.of("BTC", "0.001"), Money.of("USDT", "50")));
+
+        assertEquals(Money.of("BTC", "0.999"), ledger.balanceOf(buyer, BTC).available());
+        assertEquals(Money.of("USDT", "49950"), ledger.balanceOf(seller, USDT).available());
+        assertEquals(0, feeBalance("BTC").compareTo(new BigDecimal("0.001")));
+        assertEquals(0, feeBalance("USDT").compareTo(new BigDecimal("50")));
+        // ledger still conserves value across every asset
+        assertEquals(0, assetSum("BTC").signum());
+        assertEquals(0, assetSum("USDT").signum());
+    }
+
+    @Transactional
+    BigDecimal feeBalance(String asset) {
+        return (BigDecimal) em.createNativeQuery(
+                        "select coalesce(amount,0) from account.balances where account_key = :k")
+                .setParameter("k", "kyra:fee:" + asset).getSingleResult();
     }
 
     @Transactional

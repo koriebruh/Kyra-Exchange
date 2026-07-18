@@ -5,6 +5,7 @@ import com.kyra.account.api.AccountKey;
 import com.kyra.account.api.EntryLine;
 import com.kyra.account.api.JournalRequest;
 import com.kyra.account.api.JournalType;
+import com.kyra.common.money.Money;
 import com.kyra.settlement.api.SettlementApi;
 import com.kyra.settlement.api.TradeSettled;
 import com.kyra.settlement.api.TradeSettlement;
@@ -16,6 +17,7 @@ import jakarta.transaction.Transactional;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -47,11 +49,26 @@ public class SettlementService implements SettlementApi {
             return; // already settled
         }
 
-        ledger.post(new JournalRequest(JournalType.TRADE_SETTLEMENT, t.tradeId(), List.of(
-                EntryLine.of(AccountKey.userHold(t.buyerUserId(), t.quoteAmount().asset()), t.quoteAmount().negated()),
-                EntryLine.of(AccountKey.userMain(t.sellerUserId(), t.quoteAmount().asset()), t.quoteAmount()),
-                EntryLine.of(AccountKey.userHold(t.sellerUserId(), t.baseQty().asset()), t.baseQty().negated()),
-                EntryLine.of(AccountKey.userMain(t.buyerUserId(), t.baseQty().asset()), t.baseQty()))));
+        Money quote = t.quoteAmount();
+        Money base = t.baseQty();
+        Money sellerFee = t.sellerFee();
+        Money buyerFee = t.buyerFee();
+
+        // Quote side: buyer's held quote pays the seller minus fee; fee -> kyra:fee.
+        // Base side: seller's held base goes to the buyer minus fee; fee -> kyra:fee.
+        // Nets to zero per asset. Zero-fee entries are omitted (a journal line must be non-zero).
+        List<EntryLine> lines = new ArrayList<>();
+        lines.add(EntryLine.of(AccountKey.userHold(t.buyerUserId(), quote.asset()), quote.negated()));
+        lines.add(EntryLine.of(AccountKey.userMain(t.sellerUserId(), quote.asset()), quote.minus(sellerFee)));
+        if (sellerFee.isPositive()) {
+            lines.add(EntryLine.of(AccountKey.fee(quote.asset()), sellerFee));
+        }
+        lines.add(EntryLine.of(AccountKey.userHold(t.sellerUserId(), base.asset()), base.negated()));
+        lines.add(EntryLine.of(AccountKey.userMain(t.buyerUserId(), base.asset()), base.minus(buyerFee)));
+        if (buyerFee.isPositive()) {
+            lines.add(EntryLine.of(AccountKey.fee(base.asset()), buyerFee));
+        }
+        ledger.post(new JournalRequest(JournalType.TRADE_SETTLEMENT, t.tradeId(), lines));
 
         TradeEntity e = new TradeEntity();
         e.id = t.tradeId();

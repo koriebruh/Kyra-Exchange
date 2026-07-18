@@ -55,6 +55,13 @@ public class OrderEntity {
     @Column(name = "book_seq")
     public Long bookSeq;
 
+    /** Fee rates frozen at placement (kyra-doc/modules/11) — later rate changes never apply retroactively. */
+    @Column(name = "maker_rate", nullable = false, precision = 10, scale = 8)
+    public BigDecimal makerRate;
+
+    @Column(name = "taker_rate", nullable = false, precision = 10, scale = 8)
+    public BigDecimal takerRate;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     public Instant createdAt;
 

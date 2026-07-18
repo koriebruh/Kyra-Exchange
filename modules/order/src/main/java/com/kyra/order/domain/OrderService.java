@@ -5,6 +5,10 @@ import com.kyra.common.id.Ids;
 import com.kyra.common.money.AssetId;
 import com.kyra.common.money.Money;
 import com.kyra.common.money.PairSymbol;
+import com.kyra.fee.api.FeeApi;
+import com.kyra.fee.api.FeeRates;
+import com.kyra.fee.api.Fees;
+import com.kyra.market.api.Asset;
 import com.kyra.market.api.MarketApi;
 import com.kyra.market.api.OrderValidation;
 import com.kyra.market.api.Pair;
@@ -50,16 +54,18 @@ public class OrderService implements OrderApi {
     private final AccountApi ledger;
     private final MatchingEngineApi engine;
     private final SettlementApi settlement;
+    private final FeeApi fees;
 
     private final ConcurrentMap<String, Object> pairLocks = new ConcurrentHashMap<>();
 
     public OrderService(EntityManager em, MarketApi market, AccountApi ledger,
-            MatchingEngineApi engine, SettlementApi settlement) {
+            MatchingEngineApi engine, SettlementApi settlement, FeeApi fees) {
         this.em = em;
         this.market = market;
         this.ledger = ledger;
         this.engine = engine;
         this.settlement = settlement;
+        this.fees = fees;
     }
 
     @Override
@@ -173,7 +179,17 @@ public class OrderService implements OrderApi {
             sellOrder = taker;
         }
 
-        settlement.settle(new TradeSettlement(Ids.newUlid(), pair.symbol(), buyerUser, sellerUser, baseQty, quoteAmount));
+        // Fee is taken from the asset each party receives, at that order's frozen
+        // rate for its role (taker order pays taker rate, maker order maker rate).
+        int baseScale = market.asset(pair.symbol().base()).map(Asset::scale).orElse(18);
+        int quoteScale = market.asset(pair.symbol().quote()).map(Asset::scale).orElse(18);
+        BigDecimal buyRate = (t.takerSide() == OrderSide.BUY) ? buyOrder.takerRate : buyOrder.makerRate;
+        BigDecimal sellRate = (t.takerSide() == OrderSide.SELL) ? sellOrder.takerRate : sellOrder.makerRate;
+        Money buyerFee = Fees.charge(baseQty, buyRate, baseScale);
+        Money sellerFee = Fees.charge(quoteAmount, sellRate, quoteScale);
+
+        settlement.settle(new TradeSettlement(Ids.newUlid(), pair.symbol(), buyerUser, sellerUser,
+                baseQty, quoteAmount, buyerFee, sellerFee));
 
         applyFill(buyOrder, tradeQty, quoteAmount.amount()); // buyer consumes quote from hold
         applyFill(sellOrder, tradeQty, tradeQty);            // seller consumes base from hold
@@ -227,6 +243,7 @@ public class OrderService implements OrderApi {
     // ----- helpers -----
 
     private OrderEntity persistAccepted(PlaceOrder cmd, Money holdAmount) {
+        FeeRates rates = fees.ratesFor(cmd.userId(), cmd.pair());
         OrderEntity o = new OrderEntity();
         o.id = Ids.newUlid();
         o.userId = cmd.userId();
@@ -239,6 +256,8 @@ public class OrderService implements OrderApi {
         o.heldRemaining = holdAmount.amount();
         o.holdAsset = holdAmount.asset().symbol();
         o.status = OrderStatus.ACCEPTED.name();
+        o.makerRate = rates.makerRate();
+        o.takerRate = rates.takerRate();
         o.createdAt = Instant.now();
         o.updatedAt = o.createdAt;
         em.persist(o);
