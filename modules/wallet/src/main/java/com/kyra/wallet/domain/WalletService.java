@@ -118,8 +118,11 @@ public class WalletService implements WalletApi {
     public String requestWithdrawal(String userId, AssetId asset, Money amount, String toAddress) {
         amount.requireNonNegative();
 
-        // Compliance gates (kyra-doc/modules/08, /10): KYC required for withdrawal,
-        // and the destination address must pass AML screening.
+        // Compliance gates (kyra-doc/modules/08, /10, /12): frozen accounts cannot
+        // withdraw; KYC required; the destination address must pass AML screening.
+        if (compliance.isFrozen(userId)) {
+            throw new WithdrawalRejectedException("ACCOUNT_FROZEN", "account is frozen");
+        }
         if (!compliance.kycLevel(userId).atLeast(KycLevel.L1)) {
             throw new WithdrawalRejectedException("KYC_REQUIRED", "withdrawals require identity verification");
         }

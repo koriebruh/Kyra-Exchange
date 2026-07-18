@@ -107,6 +107,16 @@ class WalletServiceTest {
     }
 
     @Test
+    void frozenAccountCannotWithdraw() {
+        String u = verifiedUser("1000");
+        compliance.freezeAccount(u, "admin hold");
+        WithdrawalRejectedException ex = assertThrows(WithdrawalRejectedException.class,
+                () -> wallet.requestWithdrawal(u, USDT, Money.of("USDT", "100"), "dest"));
+        assertEquals("ACCOUNT_FROZEN", ex.code());
+        assertEquals(Money.zero(USDT), ledger.balanceOf(u, USDT).onHold());
+    }
+
+    @Test
     void withdrawalToScreenedAddressRejected() {
         String u = verifiedUser("1000");
         WithdrawalRejectedException ex = assertThrows(WithdrawalRejectedException.class,

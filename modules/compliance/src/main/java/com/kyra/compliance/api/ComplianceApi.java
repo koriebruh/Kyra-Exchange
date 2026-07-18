@@ -20,4 +20,13 @@ public interface ComplianceApi {
 
     /** Screen a deposit source or withdrawal destination address. */
     ScreeningResult screenAddress(String address, AssetId asset);
+
+    /** Freeze an account (blocks withdrawals/sensitive actions). Idempotent. Called by admin. */
+    void freezeAccount(String userId, String reason);
+
+    /** Lift a freeze. Idempotent. */
+    void unfreezeAccount(String userId);
+
+    /** Whether the account is currently frozen. */
+    boolean isFrozen(String userId);
 }

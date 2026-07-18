@@ -83,6 +83,36 @@ public class ComplianceService implements ComplianceApi {
         return result;
     }
 
+    @Override
+    @Transactional
+    public void freezeAccount(String userId, String reason) {
+        if (em.find(AccountFreezeEntity.class, userId) != null) {
+            return; // already frozen
+        }
+        AccountFreezeEntity f = new AccountFreezeEntity();
+        f.userId = userId;
+        f.reason = reason == null ? "" : reason;
+        f.frozenAt = Instant.now();
+        em.persist(f);
+        LOG.warnf("account frozen: user=%s reason=%s", userId, reason);
+    }
+
+    @Override
+    @Transactional
+    public void unfreezeAccount(String userId) {
+        AccountFreezeEntity f = em.find(AccountFreezeEntity.class, userId);
+        if (f != null) {
+            em.remove(f);
+            LOG.infof("account unfrozen: user=%s", userId);
+        }
+    }
+
+    @Override
+    @Transactional
+    public boolean isFrozen(String userId) {
+        return em.find(AccountFreezeEntity.class, userId) != null;
+    }
+
     private void recordSubmission(String id, String userId, KycLevel level, KycProvider.Outcome outcome) {
         KycSubmissionEntity s = new KycSubmissionEntity();
         s.id = id;

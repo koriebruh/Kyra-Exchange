@@ -12,4 +12,10 @@ public interface AdminApi {
 
     /** Reject a withdrawal awaiting review (releases funds); records an audit entry. */
     void rejectWithdrawal(String adminId, String withdrawId, String reason);
+
+    /** Freeze a user account (blocks withdrawals); records an audit entry. */
+    void freezeUser(String adminId, String userId, String reason);
+
+    /** Lift a user account freeze; records an audit entry. */
+    void unfreezeUser(String adminId, String userId);
 }

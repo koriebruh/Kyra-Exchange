@@ -13,11 +13,11 @@
     <dependencies>
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-common</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-wallet</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>com.kyra</groupId><artifactId>kyra-compliance</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-arc</artifactId></dependency>
         <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-hibernate-orm</artifactId></dependency>
 
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-account</artifactId><version>${project.version}</version><scope>test</scope></dependency>
-        <dependency><groupId>com.kyra</groupId><artifactId>kyra-compliance</artifactId><version>${project.version}</version><scope>test</scope></dependency>
         <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-junit5</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-jdbc-postgresql</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-flyway</artifactId><scope>test</scope></dependency>

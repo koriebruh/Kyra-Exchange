@@ -2,6 +2,7 @@ package com.kyra.admin.domain;
 
 import com.kyra.admin.api.AdminApi;
 import com.kyra.common.id.Ids;
+import com.kyra.compliance.api.ComplianceApi;
 import com.kyra.wallet.api.WalletApi;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,10 +24,12 @@ public class AdminService implements AdminApi {
 
     private final EntityManager em;
     private final WalletApi wallet;
+    private final ComplianceApi compliance;
 
-    public AdminService(EntityManager em, WalletApi wallet) {
+    public AdminService(EntityManager em, WalletApi wallet, ComplianceApi compliance) {
         this.em = em;
         this.wallet = wallet;
+        this.compliance = compliance;
     }
 
     @Override
@@ -53,6 +56,22 @@ public class AdminService implements AdminApi {
         wallet.rejectWithdrawal(withdrawId, reason);
         audit(adminId, "WITHDRAWAL_REJECTED", "withdrawal", withdrawId, reason);
         LOG.infof("admin %s rejected withdrawal %s: %s", adminId, withdrawId, reason);
+    }
+
+    @Override
+    @Transactional
+    public void freezeUser(String adminId, String userId, String reason) {
+        compliance.freezeAccount(userId, reason);
+        audit(adminId, "USER_FROZEN", "user", userId, reason);
+        LOG.warnf("admin %s froze user %s: %s", adminId, userId, reason);
+    }
+
+    @Override
+    @Transactional
+    public void unfreezeUser(String adminId, String userId) {
+        compliance.unfreezeAccount(userId);
+        audit(adminId, "USER_UNFROZEN", "user", userId, null);
+        LOG.infof("admin %s unfroze user %s", adminId, userId);
     }
 
     private void recordApprovalOnce(String adminId, String withdrawId) {

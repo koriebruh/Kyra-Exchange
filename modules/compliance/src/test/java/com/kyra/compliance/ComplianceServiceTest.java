@@ -45,6 +45,17 @@ class ComplianceServiceTest {
     }
 
     @Test
+    void freezeAndUnfreezeToggleAccountState() {
+        String u = Ids.newUlid();
+        org.junit.jupiter.api.Assertions.assertFalse(compliance.isFrozen(u));
+        compliance.freezeAccount(u, "investigation");
+        compliance.freezeAccount(u, "investigation"); // idempotent
+        org.junit.jupiter.api.Assertions.assertTrue(compliance.isFrozen(u));
+        compliance.unfreezeAccount(u);
+        org.junit.jupiter.api.Assertions.assertFalse(compliance.isFrozen(u));
+    }
+
+    @Test
     void addressScreeningClassifiesRisk() {
         assertEquals(ScreeningResult.CLEAR, compliance.screenAddress("bc1qcleanaddress", BTC));
         assertEquals(ScreeningResult.HOLD, compliance.screenAddress("bc1q-tainted-mixer", BTC));

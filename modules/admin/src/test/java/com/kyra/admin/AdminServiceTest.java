@@ -16,7 +16,9 @@ import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTest
 class AdminServiceTest {
@@ -87,6 +89,18 @@ class AdminServiceTest {
         // a second, distinct admin completes the 4-eyes
         admin.approveWithdrawal("admin-02", wid);
         assertEquals("BROADCASTING", withdrawalStatus(wid), "two distinct approvers submit the withdrawal");
+    }
+
+    @Test
+    void freezeAndUnfreezeUserAreAuditedAndEnforced() {
+        String u = Ids.newUlid();
+        admin.freezeUser("admin-01", u, "suspicious activity");
+        assertTrue(compliance.isFrozen(u));
+        assertEquals(1, auditCount(u, "USER_FROZEN"));
+
+        admin.unfreezeUser("admin-01", u);
+        assertFalse(compliance.isFrozen(u));
+        assertEquals(1, auditCount(u, "USER_UNFROZEN"));
     }
 
     @Test
