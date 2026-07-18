@@ -177,6 +177,24 @@ class OrderFlowTest {
     }
 
     @Test
+    void riskPriceBandRejectsOffMarketOrder() {
+        Fixture f = freshMarket();
+        String seller = funded(f.base(), "1");
+        String buyer = funded(f.quote(), "100000");
+        // establish a last price of 50000 via a real trade
+        place(f, seller, OrderSide.SELL, "50000", "1", TimeInForce.GTC);
+        place(f, buyer, OrderSide.BUY, "50000", "1", TimeInForce.GTC);
+
+        // a new order 40% away from last price is outside the 20% risk band
+        String buyer2 = funded(f.quote(), "100000");
+        OrderRejectedException ex = assertThrows(OrderRejectedException.class,
+                () -> place(f, buyer2, OrderSide.BUY, "70000", "1", TimeInForce.GTC));
+        assertEquals("PRICE_BAND", ex.code());
+        // rejected before holding funds
+        assertEquals(Money.of(f.quote(), bd("100000")), ledger.balanceOf(buyer2, f.quote()).available());
+    }
+
+    @Test
     void duplicateClientOrderIdRejected() {
         Fixture f = freshMarket();
         String buyer = funded(f.quote(), "100000");

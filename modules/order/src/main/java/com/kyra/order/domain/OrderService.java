@@ -21,6 +21,8 @@ import com.kyra.order.api.OrderRejectedException;
 import com.kyra.order.api.OrderStatus;
 import com.kyra.order.api.OrderView;
 import com.kyra.order.api.PlaceOrder;
+import com.kyra.risk.api.RiskApi;
+import com.kyra.risk.api.RiskDecision;
 import com.kyra.settlement.api.SettlementApi;
 import com.kyra.settlement.api.TradeSettlement;
 
@@ -55,17 +57,19 @@ public class OrderService implements OrderApi {
     private final MatchingEngineApi engine;
     private final SettlementApi settlement;
     private final FeeApi fees;
+    private final RiskApi risk;
 
     private final ConcurrentMap<String, Object> pairLocks = new ConcurrentHashMap<>();
 
     public OrderService(EntityManager em, MarketApi market, AccountApi ledger,
-            MatchingEngineApi engine, SettlementApi settlement, FeeApi fees) {
+            MatchingEngineApi engine, SettlementApi settlement, FeeApi fees, RiskApi risk) {
         this.em = em;
         this.market = market;
         this.ledger = ledger;
         this.engine = engine;
         this.settlement = settlement;
         this.fees = fees;
+        this.risk = risk;
     }
 
     @Override
@@ -118,6 +122,12 @@ public class OrderService implements OrderApi {
         }
         if (duplicateClientId(cmd.userId(), cmd.clientOrderId())) {
             throw new OrderRejectedException("DUPLICATE_CLIENT_ORDER_ID", "client_order_id already used");
+        }
+
+        BigDecimal notional = cmd.price().multiply(cmd.qty());
+        RiskDecision riskDecision = risk.checkOrder(cmd.userId(), cmd.pair(), cmd.price(), notional);
+        if (!riskDecision.allowed()) {
+            throw new OrderRejectedException(riskDecision.reason(), "order rejected by risk: " + riskDecision.reason());
         }
 
         AssetId base = cmd.pair().base();

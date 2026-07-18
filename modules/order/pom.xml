@@ -17,6 +17,7 @@
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-matching</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-settlement</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-fee</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>com.kyra</groupId><artifactId>kyra-risk</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-arc</artifactId></dependency>
         <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-hibernate-orm</artifactId></dependency>
         <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-narayana-jta</artifactId></dependency>
