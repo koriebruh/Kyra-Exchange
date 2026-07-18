@@ -27,6 +27,13 @@ public interface PerpetualApi {
     void closePosition(String positionId);
 
     /**
+     * Apply a funding round to all open positions on a symbol (kyra-doc/modules/09
+     * Part B): with a positive rate longs pay shorts, settled against margin.
+     * Idempotent by {@code roundId}. Returns the number of positions funded.
+     */
+    int applyFunding(String symbol, java.math.BigDecimal fundingRate, String roundId);
+
+    /**
      * Liquidate the position if its equity has fallen to/below the maintenance
      * margin (marked to the current mark price). Returns true if liquidated.
      */

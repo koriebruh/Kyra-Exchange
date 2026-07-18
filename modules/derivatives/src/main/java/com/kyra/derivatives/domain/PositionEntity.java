@@ -43,6 +43,10 @@ public class PositionEntity {
     @Column(name = "realized_pnl", precision = 38, scale = 18)
     public BigDecimal realizedPnl;
 
+    /** The last funding round applied — guards against double-applying a round. */
+    @Column(name = "last_funding_round")
+    public String lastFundingRound;
+
     @Column(name = "opened_at", nullable = false, updatable = false)
     public Instant openedAt;
 

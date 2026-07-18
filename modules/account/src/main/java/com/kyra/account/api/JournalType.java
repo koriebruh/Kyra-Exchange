@@ -14,5 +14,6 @@ public enum JournalType {
     TRANSFER,
     PERP_MARGIN,
     PERP_SETTLEMENT,
+    PERP_FUNDING,
     ADJUSTMENT
 }

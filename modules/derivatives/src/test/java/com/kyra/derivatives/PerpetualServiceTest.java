@@ -133,6 +133,28 @@ class PerpetualServiceTest {
     }
 
     @Test
+    void fundingMovesMarginFromLongsToShortsAndIsIdempotent() {
+        String sym = symbol();
+        String longUser = fundedUser("10000");
+        String shortUser = fundedUser("10000");
+        String longPos = perp.openPosition(longUser, sym, PositionSide.LONG, bd("1"), bd("50000"), Money.of(USDT, bd("5000")));
+        String shortPos = perp.openPosition(shortUser, sym, PositionSide.SHORT, bd("1"), bd("50000"), Money.of(USDT, bd("5000")));
+        markPrices.setPrice(sym, bd("50000"));
+
+        BigDecimal perpBefore = perpBalance();
+        // rate 0.001 on notional 50000 -> 50 per side; long pays, short receives
+        int funded = perp.applyFunding(sym, bd("0.001"), "round-1");
+        assertEquals(2, funded);
+        assertEquals(0, perp.position(longPos).orElseThrow().margin().compareTo(bd("4950")), "long paid funding");
+        assertEquals(0, perp.position(shortPos).orElseThrow().margin().compareTo(bd("5050")), "short received funding");
+        assertEquals(0, perpBalance().subtract(perpBefore).signum(), "balanced book: funding nets to zero at perp");
+
+        // same round again is a no-op (idempotent journal refs)
+        perp.applyFunding(sym, bd("0.001"), "round-1");
+        assertEquals(0, perp.position(longPos).orElseThrow().margin().compareTo(bd("4950")));
+    }
+
+    @Test
     void ledgerConservesValueAcrossPerpLifecycle() {
         String u = fundedUser("10000");
         String sym = symbol();

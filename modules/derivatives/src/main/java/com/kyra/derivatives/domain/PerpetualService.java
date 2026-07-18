@@ -113,6 +113,43 @@ public class PerpetualService implements PerpetualApi {
 
     @Override
     @Transactional
+    public int applyFunding(String symbol, BigDecimal fundingRate, String roundId) {
+        BigDecimal mark = markOf(symbol);
+        List<PositionEntity> positions = em.createQuery(
+                        "from PositionEntity where symbol = :s and status = 'OPEN'", PositionEntity.class)
+                .setParameter("s", symbol).getResultList();
+
+        int funded = 0;
+        for (PositionEntity p : positions) {
+            if (roundId.equals(p.lastFundingRound)) {
+                continue; // this round already applied to this position
+            }
+            AssetId c = AssetId.of(p.collateralAsset);
+            // positive payment = this position PAYS (long when rate>0); negative = receives
+            BigDecimal notional = p.size.multiply(mark);
+            BigDecimal payment = notional.multiply(fundingRate)
+                    .multiply(BigDecimal.valueOf(PositionSide.valueOf(p.side).sign()));
+            if (payment.signum() == 0) {
+                continue;
+            }
+            // margin -= payment, kyra:perp += payment (net zero across a balanced book)
+            Money pay = Money.of(c, payment.abs());
+            List<EntryLine> lines = payment.signum() > 0
+                    ? List.of(EntryLine.of(AccountKey.userMargin(p.userId, c), pay.negated()),
+                              EntryLine.of(AccountKey.perp(c), pay))
+                    : List.of(EntryLine.of(AccountKey.userMargin(p.userId, c), pay),
+                              EntryLine.of(AccountKey.perp(c), pay.negated()));
+            ledger.post(new JournalRequest(JournalType.PERP_FUNDING, "perp-funding:" + roundId + ":" + p.id, lines));
+            p.margin = p.margin.subtract(payment);
+            p.lastFundingRound = roundId;
+            funded++;
+        }
+        LOG.infof("funding round %s on %s (rate %s): %d positions", roundId, symbol, fundingRate, funded);
+        return funded;
+    }
+
+    @Override
+    @Transactional
     public Optional<Position> position(String positionId) {
         PositionEntity p = em.find(PositionEntity.class, positionId);
         return (p == null || !"OPEN".equals(p.status)) ? Optional.empty() : Optional.of(toView(p));
