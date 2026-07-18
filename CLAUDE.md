@@ -39,12 +39,24 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
     release over-hold/remainder. Per-pair serialized (lock + programmatic tx).
     End-to-end tested: two accounts trade, price improvement release, partial
     fill, cancel, IOC expiry, insufficient-balance/off-grid/dup-client rejects.
-  - PHASE 2 EXIT CRITERIA MET at service level (two accounts trade).
-  - Not yet built (phase-2 completion): MARKET orders (need quote-budget for
-    market-buy), STOP/OCO (04 trigger engine), order REST endpoints in kyra-app,
-    marketdata (07: candles/ticker/depth/WS), matching event-log recovery
-    (currently rebuild from open-orders table on startup). These are planned
-    next steps, not blocked.
+  - order REST (kyra-app /v1/orders place/cancel/get/open) DONE.
+  - matching recovery DONE — book_seq persisted, OrderRecovery rebuilds books
+    from open orders on startup (restoreInto tested against a fresh engine).
+  - marketdata (modules/07) DONE (partial) — 1m OHLCV candles + 24h ticker from
+    TradeSettled (synchronous, atomic with settlement), depth snapshot from
+    engine. REST: /v1/market/candles|ticker|depth. V700 candles.
+  - PHASE 2 EXIT CRITERIA MET (two accounts trade + recovery).
+  - Remaining phase 2/3 (NOT blocked, build next): MARKET orders (quote-budget
+    for market-buy), STOP/OCO trigger engine, WebSocket streams (07 F5),
+    multi-interval candles (5m/1h/…), rate limiting (Valkey), idempotency-key
+    enforcement on money/order endpoints.
+- Phase 4+ modules — some blocked by external deps (see TECHDEBT.md):
+  - wallet (08): BLOCKED — needs Fystack API integration.
+  - compliance (10): BLOCKED — needs KYC provider.
+  - notification (13): BLOCKED — needs email provider.
+  - NOT blocked (pure internal logic, buildable now): fee (11 maker/taker+tiers),
+    risk (09 limits/velocity), tax (15 PPh/PPN), admin (12 backoffice), liquidity
+    (14 MM bot). Build these before the blocked ones.
 
 ## Layout
 ```
