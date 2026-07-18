@@ -14,6 +14,7 @@
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-common</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-account</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-fee</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>com.kyra</groupId><artifactId>kyra-compliance</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-arc</artifactId></dependency>
         <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-hibernate-orm</artifactId></dependency>
 

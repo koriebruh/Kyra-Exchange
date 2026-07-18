@@ -5,7 +5,10 @@ import com.kyra.account.api.InsufficientBalanceException;
 import com.kyra.common.id.Ids;
 import com.kyra.common.money.AssetId;
 import com.kyra.common.money.Money;
+import com.kyra.compliance.api.ComplianceApi;
+import com.kyra.compliance.api.KycLevel;
 import com.kyra.wallet.api.WalletApi;
+import com.kyra.wallet.api.WithdrawalRejectedException;
 
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -33,8 +36,19 @@ class WalletServiceTest {
     @Inject
     EntityManager em;
 
+    @Inject
+    ComplianceApi compliance;
+
     private String user() {
         return Ids.newUlid();
+    }
+
+    /** A user who is funded and KYC-verified (L1) — eligible to withdraw. */
+    private String verifiedUser(String depositAmount) {
+        String u = Ids.newUlid();
+        wallet.creditDeposit(u, Money.of("USDT", depositAmount), "tx-" + Ids.newUlid());
+        compliance.submitKyc(u, KycLevel.L1);
+        return u;
     }
 
     @Test
@@ -58,8 +72,7 @@ class WalletServiceTest {
 
     @Test
     void withdrawalHoldsThenCompletesMovingFundsOutWithFee() {
-        String u = user();
-        wallet.creditDeposit(u, Money.of("USDT", "1000"), "tx-" + Ids.newUlid());
+        String u = verifiedUser("1000");
 
         // withdraw 500 + fee 1 -> hold 501
         String wid = wallet.requestWithdrawal(u, USDT, Money.of("USDT", "500"), "dest-address");
@@ -74,8 +87,7 @@ class WalletServiceTest {
 
     @Test
     void withdrawalBeyondBalanceRejected() {
-        String u = user();
-        wallet.creditDeposit(u, Money.of("USDT", "100"), "tx-" + Ids.newUlid());
+        String u = verifiedUser("100");
         assertThrows(InsufficientBalanceException.class,
                 () -> wallet.requestWithdrawal(u, USDT, Money.of("USDT", "1000"), "dest"));
         // nothing held after the rejected attempt
@@ -83,9 +95,27 @@ class WalletServiceTest {
     }
 
     @Test
-    void failedWithdrawalReleasesHeldFunds() {
+    void withdrawalRequiresKyc() {
         String u = user();
-        wallet.creditDeposit(u, Money.of("USDT", "1000"), "tx-" + Ids.newUlid());
+        wallet.creditDeposit(u, Money.of("USDT", "1000"), "tx-" + Ids.newUlid()); // funded but L0
+        WithdrawalRejectedException ex = assertThrows(WithdrawalRejectedException.class,
+                () -> wallet.requestWithdrawal(u, USDT, Money.of("USDT", "100"), "dest"));
+        assertEquals("KYC_REQUIRED", ex.code());
+        assertEquals(Money.zero(USDT), ledger.balanceOf(u, USDT).onHold(), "no funds held on a rejected withdrawal");
+    }
+
+    @Test
+    void withdrawalToScreenedAddressRejected() {
+        String u = verifiedUser("1000");
+        WithdrawalRejectedException ex = assertThrows(WithdrawalRejectedException.class,
+                () -> wallet.requestWithdrawal(u, USDT, Money.of("USDT", "100"), "sanctioned-wallet"));
+        assertEquals("ADDRESS_BLOCK", ex.code());
+        assertEquals(Money.zero(USDT), ledger.balanceOf(u, USDT).onHold());
+    }
+
+    @Test
+    void failedWithdrawalReleasesHeldFunds() {
+        String u = verifiedUser("1000");
         String wid = wallet.requestWithdrawal(u, USDT, Money.of("USDT", "500"), "dest");
         assertEquals(Money.of("USDT", "501"), ledger.balanceOf(u, USDT).onHold());
 

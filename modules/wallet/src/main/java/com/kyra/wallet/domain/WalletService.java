@@ -8,9 +8,13 @@ import com.kyra.account.api.JournalType;
 import com.kyra.common.id.Ids;
 import com.kyra.common.money.AssetId;
 import com.kyra.common.money.Money;
+import com.kyra.compliance.api.ComplianceApi;
+import com.kyra.compliance.api.KycLevel;
+import com.kyra.compliance.api.ScreeningResult;
 import com.kyra.fee.api.FeeApi;
 import com.kyra.wallet.api.CustodyProvider;
 import com.kyra.wallet.api.WalletApi;
+import com.kyra.wallet.api.WithdrawalRejectedException;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
@@ -38,12 +42,15 @@ public class WalletService implements WalletApi {
     private final AccountApi ledger;
     private final FeeApi fees;
     private final CustodyProvider custody;
+    private final ComplianceApi compliance;
 
-    public WalletService(EntityManager em, AccountApi ledger, FeeApi fees, CustodyProvider custody) {
+    public WalletService(EntityManager em, AccountApi ledger, FeeApi fees, CustodyProvider custody,
+            ComplianceApi compliance) {
         this.em = em;
         this.ledger = ledger;
         this.fees = fees;
         this.custody = custody;
+        this.compliance = compliance;
     }
 
     @Override
@@ -91,6 +98,18 @@ public class WalletService implements WalletApi {
     @Transactional
     public String requestWithdrawal(String userId, AssetId asset, Money amount, String toAddress) {
         amount.requireNonNegative();
+
+        // Compliance gates (kyra-doc/modules/08, /10): KYC required for withdrawal,
+        // and the destination address must pass AML screening.
+        if (!compliance.kycLevel(userId).atLeast(KycLevel.L1)) {
+            throw new WithdrawalRejectedException("KYC_REQUIRED", "withdrawals require identity verification");
+        }
+        ScreeningResult screening = compliance.screenAddress(toAddress, asset);
+        if (screening != ScreeningResult.CLEAR) {
+            throw new WithdrawalRejectedException("ADDRESS_" + screening.name(),
+                    "destination address failed screening: " + screening);
+        }
+
         Money fee = Money.of(asset, fees.withdrawFee(asset));
         Money total = amount.plus(fee);
 
