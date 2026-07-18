@@ -56,16 +56,26 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
     for market-buy), STOP/OCO trigger engine, WebSocket streams (07 F5),
     multi-interval candles (5m/1h/…), rate limiting (Valkey), idempotency-key
     enforcement on money/order endpoints.
-- Phases 1-3 DONE. Phase 4 in progress:
-  - wallet (08) INTERNAL LOGIC DONE against a mock custody backend — deposit
-    address, creditDeposit (ledger, idempotent by txid), requestWithdrawal
-    (hold+fee), completeWithdrawal (-> external, fee -> kyra:fee), failWithdrawal
-    (release). CustodyProvider interface; MockCustodyProvider. V800.
-    STILL VENDOR-BLOCKED: real Fystack impl, deposit detector (webhook/poll),
-    reconciliation job, withdraw approval/2FA/whitelist.
-  - compliance (10): BLOCKED — needs KYC provider (could build KycProvider
-    interface + mock like wallet did, if desired).
-  - notification (13): BLOCKED — needs email provider (same pattern possible).
+- Phases 1-3 DONE. Phase 4 INTERNAL LOGIC DONE (all against mock providers;
+  real vendors deferred behind interfaces — pattern: interface + Mock*, real impl
+  is a config-selected bean swap):
+  - wallet (08): deposit address, creditDeposit (idempotent by txid),
+    requestWithdrawal (hold+fee, auto-approve small / PENDING_REVIEW large),
+    approve/reject/complete/fail. CustodyProvider + MockCustodyProvider. V800.
+  - compliance (10): KYC levels (submitKyc raises, never lowers), AML address
+    screening. KycProvider/AddressScreener + mocks. V1000. Gates wallet withdraw
+    (KYC L1+ and CLEAR address required).
+  - notification (13): templated transactional email, idempotent by dedupKey.
+    EmailSender + RecordingEmailSender. V1300. Wired into identity register
+    (verification email sent).
+  - admin (12): withdrawal approve/reject with immutable audit trail (V1200,
+    append-only). Delegates to wallet.
+  - STILL VENDOR-BLOCKED (TECHDEBT): real Fystack custody, real KYC provider,
+    real email/SMTP, deposit detector (webhook/poll), reconciliation vs real
+    custody, tax IDR conversion.
+  - Buildable next (not blocked): 4-eyes for large withdrawals, admin freeze/
+    config ops + admin REST, wallet reconciliation logic (mock), Proof of Reserves,
+    liquidity MM bot (needs a price feed), tax mechanism (rates config, IDR blocked).
   - fee (11) DONE — maker/taker rates frozen per order, deducted at settlement to
     kyra:fee:*. Tiers/overrides planned.
   - risk (09 spot) DONE — checkOrder (max notional + price band) wired into order
