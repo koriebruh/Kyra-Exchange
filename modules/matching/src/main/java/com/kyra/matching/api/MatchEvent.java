@@ -23,8 +23,12 @@ public sealed interface MatchEvent
             long seq) implements MatchEvent {
     }
 
-    /** The remainder of a GTC limit order entered the book. */
-    record OrderRested(String orderId, OrderSide side, long priceTicks, long remainingSteps) implements MatchEvent {
+    /**
+     * The remainder of a GTC limit order entered the book. {@code seq} is the
+     * order's assigned sequence — persisted so recovery can restore time priority.
+     */
+    record OrderRested(String orderId, OrderSide side, long priceTicks, long remainingSteps, long seq)
+            implements MatchEvent {
     }
 
     /** An order was removed from the book by an explicit cancel. */

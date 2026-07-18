@@ -168,7 +168,7 @@ public final class OrderBook {
         TreeMap<Long, Deque<BookOrder>> book = (cmd.side() == OrderSide.BUY) ? bids : asks;
         book.computeIfAbsent(cmd.priceTicks(), k -> new ArrayDeque<>()).addLast(resting);
         byId.put(cmd.orderId(), resting);
-        return new MatchEvent.OrderRested(cmd.orderId(), cmd.side(), cmd.priceTicks(), remaining);
+        return new MatchEvent.OrderRested(cmd.orderId(), cmd.side(), cmd.priceTicks(), remaining, cmd.seq());
     }
 
     private static boolean crosses(MatchCommand cmd, long bookPrice) {

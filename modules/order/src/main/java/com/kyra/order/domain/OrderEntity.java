@@ -51,6 +51,10 @@ public class OrderEntity {
     @Column(nullable = false, length = 20)
     public String status;
 
+    /** Engine sequence assigned when the order rested — used to restore time priority on recovery. */
+    @Column(name = "book_seq")
+    public Long bookSeq;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     public Instant createdAt;
 

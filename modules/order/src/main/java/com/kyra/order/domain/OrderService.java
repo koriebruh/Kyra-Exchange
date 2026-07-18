@@ -140,7 +140,10 @@ public class OrderService implements OrderApi {
         for (MatchEvent event : events) {
             switch (event) {
                 case MatchEvent.TradeExecuted t -> settleTrade(taker, pair, t);
-                case MatchEvent.OrderRested r -> taker.status = OrderStatus.OPEN.name();
+                case MatchEvent.OrderRested r -> {
+                    taker.status = OrderStatus.OPEN.name();
+                    taker.bookSeq = r.seq();
+                }
                 case MatchEvent.OrderExpired e -> { /* remainder handled in finalizeTaker */ }
                 case MatchEvent.OrderCanceled c -> { /* not produced by submit */ }
             }
