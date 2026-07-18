@@ -1,9 +1,13 @@
 package com.kyra.app.market;
 
 import com.kyra.common.money.PairSymbol;
+import com.kyra.market.api.MarketApi;
+import com.kyra.market.api.Pair;
 import com.kyra.marketdata.api.Candle;
 import com.kyra.marketdata.api.MarketdataApi;
 import com.kyra.marketdata.api.Ticker;
+import com.kyra.matching.api.DepthSnapshot;
+import com.kyra.matching.api.MatchingEngineApi;
 
 import jakarta.annotation.security.PermitAll;
 import jakarta.ws.rs.GET;
@@ -13,6 +17,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -25,9 +30,19 @@ import java.util.List;
 public class MarketdataResource {
 
     private final MarketdataApi marketdata;
+    private final MatchingEngineApi engine;
+    private final MarketApi market;
 
-    public MarketdataResource(MarketdataApi marketdata) {
+    public MarketdataResource(MarketdataApi marketdata, MatchingEngineApi engine, MarketApi market) {
         this.marketdata = marketdata;
+        this.engine = engine;
+        this.market = market;
+    }
+
+    public record DepthLevel(BigDecimal price, BigDecimal qty) {
+    }
+
+    public record DepthResponse(String pair, List<DepthLevel> bids, List<DepthLevel> asks) {
     }
 
     @GET
@@ -45,5 +60,22 @@ public class MarketdataResource {
     public Ticker ticker(@QueryParam("pair") String pair) {
         return marketdata.ticker(PairSymbol.parse(pair))
                 .orElseThrow(() -> new NotFoundException("no market data for pair: " + pair));
+    }
+
+    @GET
+    @Path("/depth")
+    public DepthResponse depth(@QueryParam("pair") String pair, @QueryParam("limit") Integer limit) {
+        PairSymbol symbol = PairSymbol.parse(pair);
+        Pair p = market.pair(symbol).orElseThrow(() -> new NotFoundException("unknown pair: " + pair));
+        DepthSnapshot snap = engine.depth(symbol, limit == null ? 50 : limit);
+        return new DepthResponse(pair,
+                snap.bids().stream().map(l -> toLevel(p, l)).toList(),
+                snap.asks().stream().map(l -> toLevel(p, l)).toList());
+    }
+
+    private static DepthLevel toLevel(Pair p, DepthSnapshot.Level l) {
+        return new DepthLevel(
+                p.tickSize().multiply(BigDecimal.valueOf(l.priceTicks())),
+                p.stepSize().multiply(BigDecimal.valueOf(l.qtySteps())));
     }
 }

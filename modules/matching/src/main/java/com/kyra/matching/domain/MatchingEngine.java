@@ -61,6 +61,19 @@ public class MatchingEngine implements MatchingEngineApi {
     }
 
     @Override
+    public com.kyra.matching.api.DepthSnapshot depth(PairSymbol pair, int limit) {
+        Pair state = pairFor(pair);
+        synchronized (state) {
+            int capped = Math.max(1, Math.min(limit, 500));
+            return new com.kyra.matching.api.DepthSnapshot(
+                    state.book.bidLevels(capped).stream()
+                            .map(l -> new com.kyra.matching.api.DepthSnapshot.Level(l[0], l[1])).toList(),
+                    state.book.askLevels(capped).stream()
+                            .map(l -> new com.kyra.matching.api.DepthSnapshot.Level(l[0], l[1])).toList());
+        }
+    }
+
+    @Override
     public void restoreResting(PairSymbol pair, String orderId, String userId, OrderSide side,
             long priceTicks, long remainingSteps, long seq) {
         Pair state = pairFor(pair);

@@ -138,6 +138,31 @@ public final class OrderBook {
         byId.put(orderId, order);
     }
 
+    /** Aggregated bid levels (highest first), up to {@code limit}: {@code [priceTicks, totalSteps]}. */
+    public List<long[]> bidLevels(int limit) {
+        return levels(bids, limit);
+    }
+
+    /** Aggregated ask levels (lowest first), up to {@code limit}: {@code [priceTicks, totalSteps]}. */
+    public List<long[]> askLevels(int limit) {
+        return levels(asks, limit);
+    }
+
+    private static List<long[]> levels(TreeMap<Long, Deque<BookOrder>> book, int limit) {
+        List<long[]> out = new ArrayList<>();
+        for (Map.Entry<Long, Deque<BookOrder>> e : book.entrySet()) {
+            if (out.size() >= limit) {
+                break;
+            }
+            long total = 0;
+            for (BookOrder o : e.getValue()) {
+                total += o.remaining;
+            }
+            out.add(new long[] {e.getKey(), total});
+        }
+        return out;
+    }
+
     public boolean contains(String orderId) {
         return byId.containsKey(orderId);
     }

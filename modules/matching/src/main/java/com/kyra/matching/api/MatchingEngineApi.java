@@ -30,6 +30,9 @@ public interface MatchingEngineApi {
     /** Cancel a resting order on a pair. Empty if it was unknown/already gone. */
     Optional<MatchEvent> cancel(PairSymbol pair, String orderId, String reason);
 
+    /** Aggregated order-book depth for a pair, up to {@code limit} levels per side. */
+    DepthSnapshot depth(PairSymbol pair, int limit);
+
     /**
      * Re-insert a resting order during startup recovery, preserving its original
      * sequence for correct time priority. Does not match — used only to rebuild

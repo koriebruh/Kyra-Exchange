@@ -29,6 +29,7 @@ import java.util.List;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * End-to-end: a real trade flows through settlement -> the market-data observer,
@@ -74,6 +75,30 @@ class MarketdataResourceTest {
     @Test
     void tickerForUntradedPairReturns404() {
         given().when().get("/v1/market/ticker?pair=NO-PE").then().statusCode(404);
+    }
+
+    @Test
+    void depthReflectsRestingOrders() {
+        AssetId base = AssetId.of("DPX");
+        AssetId quote = AssetId.of("DPQ");
+        PairSymbol pair = new PairSymbol(base, quote);
+        market.registerAsset(new Asset(base, "Depth Base", 8, AssetStatus.ACTIVE, 3));
+        market.registerAsset(new Asset(quote, "Depth Quote", 6, AssetStatus.ACTIVE, 6));
+        market.registerPair(new Pair(pair, bd("1"), bd("0.001"), bd("10"),
+                bd("0.001"), bd("10000"), 500, PairStatus.ACTIVE));
+
+        String seller = fund(base, "1");
+        String buyer = fund(quote, "100000");
+        // no cross: sell above, buy below -> both rest
+        orders.place(new PlaceOrder(seller, pair, OrderSide.SELL, TimeInForce.GTC, bd("50000"), bd("1"), Ids.newUlid()));
+        orders.place(new PlaceOrder(buyer, pair, OrderSide.BUY, TimeInForce.GTC, bd("49000"), bd("1"), Ids.newUlid()));
+
+        var json = given().when().get("/v1/market/depth?pair=DPX-DPQ&limit=10")
+                .then().statusCode(200).extract().jsonPath();
+        assertEquals(0, bd(json.getString("bids[0].price")).compareTo(bd("49000")));
+        assertEquals(0, bd(json.getString("bids[0].qty")).compareTo(bd("1")));
+        assertEquals(0, bd(json.getString("asks[0].price")).compareTo(bd("50000")));
+        assertEquals(0, bd(json.getString("asks[0].qty")).compareTo(bd("1")));
     }
 
     private String fund(AssetId asset, String amount) {
