@@ -64,15 +64,15 @@ Format: **Apa** · **Ditunda karena** · **Ref spec** · **Kerjakan saat**.
 - **Kerjakan saat:** konsultan pajak konfirmasi rate/basis/mekanisme + ada sumber
   kurs IDR.
 
-### Fase 6 — Derivatives (perpetual futures)
-- **Apa:** mark price/index engine, margin account (cross/isolated), funding
-  rate 8-jam, liquidation engine + insurance fund + ADL.
-- **Ditunda karena:** butuh **feed mark/index price eksternal** (bisa di-mock
-  seperti ReferencePriceProvider) + engine margin/liquidation yang besar &
-  saling terkait. Fase terpisah, effort besar; ledger sudah menyiapkan slot
-  `account_type` (margin) dari awal.
+### Fase 6 — Derivatives: refinement lanjutan
+- **Apa:** FONDASI SUDAH JADI (modules/derivatives): open/close/liquidation +
+  mark-price PnL + insurance backstop + funding rate. Sisa: position averaging /
+  partial close, ADL (auto-deleverage), mode margin cross vs isolated, feed mark/
+  index price + funding-premium ASLI (sekarang mock `MarkPriceProvider`).
+- **Ditunda karena:** feed harga eksternal butuh integrasi vendor; ADL & averaging
+  = refinement di atas fondasi yang sudah ada & teruji.
 - **Ref spec:** [modules/09-risk.md](modules/09-risk.md) Bagian B + README fase 6.
-- **Kerjakan saat:** fase 6 dimulai (butuh sesi fokus tersendiri).
+- **Kerjakan saat:** ada feed harga + kebutuhan produk derivatives penuh.
 
 ---
 

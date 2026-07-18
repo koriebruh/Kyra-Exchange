@@ -80,15 +80,21 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
     order path. ReferencePriceProvider + mock. Inventory skew / re-quote next.
   - Proof of Reserves (16 §7) — Merkle liabilities commitment over user balances
     (account.ProofOfReservesApi), inclusion verification.
-- ALL 14 domain modules built (spot exchange complete across phases 1-5).
-- Remaining:
-  - tax (15): legal-blocked (mechanism + rates need consultant; IDR kurs). TECHDEBT.
-  - Phase 6 derivatives: large, needs mark-price infra (mockable) + margin/funding/
-    liquidation engine. TECHDEBT.
-  - Small/unblocked follow-ups: admin freeze/config ops + admin REST, wallet
+- Phase 6 (derivatives) FOUNDATION DONE (new modules/derivatives):
+  - MarkPriceProvider + MockMarkPriceProvider; AccountKey MARGIN type + kyra:perp
+    + kyra:insurance; PERP_MARGIN/PERP_SETTLEMENT/PERP_FUNDING journals.
+  - PerpetualService: openPosition (locks margin), close/liquidate (mark-price PnL,
+    insurance backstop so users never go negative), funding rate (long pays short,
+    idempotent by round). V1400/V1401.
+- ALL 15 domain modules built. All 6 phases delivered at least foundationally.
+- Remaining (documented in TECHDEBT):
+  - tax (15): legal-blocked (mechanism + rates need consultant; IDR kurs).
+  - derivatives refinements: position averaging/partial close, ADL, cross/isolated
+    margin modes, real mark-price+funding-premium feed.
+  - Small/unblocked follow-ups: admin freeze/config + admin REST, wallet
     reconciliation + deposit detector (mock), MM inventory skew, anti-phishing code,
-    velocity limits (Valkey), other notification producers.
-  - Vendor-blocked: real Fystack/KYC/email/price-feed integrations.
+    velocity limits (Valkey), more notification producers.
+  - Vendor-blocked: real Fystack/KYC/email/price-feed integrations, PFAK/OJK licence.
   - fee (11) DONE — maker/taker rates frozen per order, deducted at settlement to
     kyra:fee:*. Tiers/overrides planned.
   - risk (09 spot) DONE — checkOrder (max notional + price band) wired into order
