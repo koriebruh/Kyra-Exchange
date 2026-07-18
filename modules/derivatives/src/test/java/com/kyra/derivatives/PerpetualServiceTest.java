@@ -155,6 +155,24 @@ class PerpetualServiceTest {
     }
 
     @Test
+    void addingToPositionAveragesEntryAndAddsMargin() {
+        String u = fundedUser("30000");
+        String sym = symbol();
+        String pid = perp.openPosition(u, sym, PositionSide.LONG, bd("1"), bd("50000"), Money.of(USDT, bd("5000")));
+        // add same-side: 1 @ 60000 -> size 2, avg entry 55000, margin 10000
+        String same = perp.openPosition(u, sym, PositionSide.LONG, bd("1"), bd("60000"), Money.of(USDT, bd("5000")));
+
+        assertEquals(pid, same, "same-side add returns the existing position");
+        assertEquals(1, positionCount(u, sym), "exactly one position exists");
+        var pos = perp.position(pid).orElseThrow();
+        assertEquals(0, pos.size().compareTo(bd("2")), "size was " + pos.size());
+        assertEquals(0, pos.entryPrice().compareTo(bd("55000")), "weighted average entry");
+        assertEquals(0, pos.margin().compareTo(bd("10000")));
+        // 10000 total moved to margin; main = 30000 - 10000 = 20000
+        assertEquals(Money.of("USDT", "20000"), ledger.balanceOf(u, USDT).available());
+    }
+
+    @Test
     void ledgerConservesValueAcrossPerpLifecycle() {
         String u = fundedUser("10000");
         String sym = symbol();
@@ -162,6 +180,13 @@ class PerpetualServiceTest {
         markPrices.setPrice(sym, bd("53000"));
         perp.closePosition(pid);
         assertEquals(0, usdtEntrySum().signum(), "all USDT entries net to zero");
+    }
+
+    @Transactional
+    long positionCount(String userId, String symbol) {
+        return ((Number) em.createNativeQuery(
+                "select count(*) from derivatives.positions where user_id = :u and symbol = :s")
+                .setParameter("u", userId).setParameter("s", symbol).getSingleResult()).longValue();
     }
 
     @Transactional

@@ -60,12 +60,26 @@ public class PerpetualService implements PerpetualApi {
             throw new IllegalArgumentException("size must be > 0");
         }
         margin.requireNonNegative();
-        String id = Ids.newUlid();
 
-        // lock margin: user main -> user margin (same asset, balanced)
-        ledger.post(new JournalRequest(JournalType.PERP_MARGIN, "perp-open:" + id, List.of(
-                EntryLine.of(AccountKey.userMain(userId, margin.asset()), margin.negated()),
-                EntryLine.of(AccountKey.userMargin(userId, margin.asset()), margin))));
+        // Adding to an existing same-side position averages the entry price and
+        // adds size + margin, rather than opening a second position.
+        PositionEntity open = findOpen(userId, symbol, side);
+        if (open != null) {
+            lockMargin(userId, margin, "perp-add:" + open.id + ":" + Ids.newUlid());
+            BigDecimal newSize = open.size.add(size);
+            BigDecimal avgEntry = open.entryPrice.multiply(open.size).add(entryPrice.multiply(size))
+                    .divide(newSize, 18, java.math.RoundingMode.HALF_UP);
+            BigDecimal newMargin = open.margin.add(margin.amount());
+            em.createQuery("update PositionEntity set size = :sz, entryPrice = :ep, margin = :mg where id = :id")
+                    .setParameter("sz", newSize).setParameter("ep", avgEntry)
+                    .setParameter("mg", newMargin).setParameter("id", open.id)
+                    .executeUpdate();
+            LOG.infof("perp increased: id=%s new size=%s avg entry=%s", open.id, newSize, avgEntry);
+            return open.id;
+        }
+
+        String id = Ids.newUlid();
+        lockMargin(userId, margin, "perp-open:" + id);
 
         PositionEntity p = new PositionEntity();
         p.id = id;
@@ -186,6 +200,23 @@ public class PerpetualService implements PerpetualApi {
         p.status = endStatus;
         p.realizedPnl = pnl;
         p.closedAt = Instant.now();
+    }
+
+    private void lockMargin(String userId, Money margin, String ref) {
+        ledger.post(new JournalRequest(JournalType.PERP_MARGIN, ref, List.of(
+                EntryLine.of(AccountKey.userMain(userId, margin.asset()), margin.negated()),
+                EntryLine.of(AccountKey.userMargin(userId, margin.asset()), margin))));
+    }
+
+    private PositionEntity findOpen(String userId, String symbol, PositionSide side) {
+        // lock the row so concurrent adds to the same position serialize (no lost read-modify-write)
+        List<PositionEntity> found = em.createQuery(
+                        "from PositionEntity where userId = :u and symbol = :s and side = :d and status = 'OPEN'",
+                        PositionEntity.class)
+                .setParameter("u", userId).setParameter("s", symbol).setParameter("d", side.name())
+                .setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+                .setMaxResults(1).getResultList();
+        return found.isEmpty() ? null : found.get(0);
     }
 
     private BigDecimal markOf(String symbol) {
