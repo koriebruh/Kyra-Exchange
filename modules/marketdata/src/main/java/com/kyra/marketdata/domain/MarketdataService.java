@@ -66,17 +66,63 @@ public class MarketdataService implements MarketdataApi {
                 .executeUpdate();
     }
 
+    /** Supported chart intervals and their length in seconds. 1m is stored; the rest aggregate from 1m. */
+    private static long intervalSeconds(String interval) {
+        return switch (interval) {
+            case "1m" -> 60;
+            case "5m" -> 300;
+            case "15m" -> 900;
+            case "1h" -> 3600;
+            case "4h" -> 14400;
+            case "1d" -> 86400;
+            default -> throw new IllegalArgumentException("unsupported interval: " + interval);
+        };
+    }
+
     @Override
     @Transactional
     public List<Candle> candles(PairSymbol pair, String interval, int limit) {
-        List<CandleEntity> rows = em.createQuery(
-                        "from CandleEntity where pair = :p and interval = :i order by openTime desc", CandleEntity.class)
+        int capped = Math.max(1, Math.min(limit, 1000));
+        if (M1.equals(interval)) {
+            List<CandleEntity> rows = em.createQuery(
+                            "from CandleEntity where pair = :p and interval = :i order by openTime desc",
+                            CandleEntity.class)
+                    .setParameter("p", pair.toString())
+                    .setParameter("i", M1)
+                    .setMaxResults(capped)
+                    .getResultList();
+            return rows.reversed().stream().map(MarketdataService::toCandle).toList();
+        }
+
+        // Aggregate stored 1m candles into the requested bucket (open=first, close=last).
+        long secs = intervalSeconds(interval);
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery("""
+                select
+                    to_timestamp(floor(extract(epoch from open_time) / :secs) * :secs) as bucket,
+                    (array_agg(open order by open_time asc))[1] as o,
+                    max(high) as h, min(low) as l,
+                    (array_agg(close order by open_time desc))[1] as c,
+                    sum(volume_base) as vb, sum(volume_quote) as vq, sum(trade_count) as tc
+                from marketdata.candles
+                where pair = :p and interval = '1m'
+                group by bucket
+                order by bucket desc
+                limit :lim
+                """)
+                .setParameter("secs", secs)
                 .setParameter("p", pair.toString())
-                .setParameter("i", interval)
-                .setMaxResults(Math.max(1, Math.min(limit, 1000)))
+                .setParameter("lim", capped)
                 .getResultList();
-        // newest-first from the query; return oldest-first for charting
-        return rows.reversed().stream().map(MarketdataService::toCandle).toList();
+
+        List<Candle> out = new java.util.ArrayList<>(rows.size());
+        for (Object[] r : rows) {
+            java.time.Instant bucket = (java.time.Instant) r[0];
+            out.add(new Candle(pair.toString(), interval, bucket,
+                    (BigDecimal) r[1], (BigDecimal) r[2], (BigDecimal) r[3], (BigDecimal) r[4],
+                    (BigDecimal) r[5], (BigDecimal) r[6], ((Number) r[7]).longValue()));
+        }
+        return out.reversed(); // oldest-first for charting
     }
 
     @Override

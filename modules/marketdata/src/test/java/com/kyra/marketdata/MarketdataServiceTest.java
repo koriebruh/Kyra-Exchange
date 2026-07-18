@@ -96,6 +96,32 @@ class MarketdataServiceTest {
         assertTrue(marketdata.ticker(freshPair()).isEmpty());
     }
 
+    @Test
+    void higherIntervalAggregatesFromOneMinuteCandles() {
+        PairSymbol pair = freshPair();
+        Instant base = Instant.parse("2026-01-01T10:00:00Z");
+        // three 1m candles inside the same 5m bucket (10:00-10:05)
+        service.recordTrade(pair, bd("100"), bd("1"), bd("100"), base.plusSeconds(30));   // 10:00
+        service.recordTrade(pair, bd("130"), bd("2"), bd("260"), base.plusSeconds(90));   // 10:01 (high)
+        service.recordTrade(pair, bd("90"), bd("1"), bd("90"), base.plusSeconds(150));    // 10:02 (low, close)
+
+        List<Candle> fiveMin = marketdata.candles(pair, "5m", 10);
+        assertEquals(1, fiveMin.size());
+        Candle c = fiveMin.get(0);
+        assertEquals(0, c.open().compareTo(bd("100")), "open = first minute's open");
+        assertEquals(0, c.high().compareTo(bd("130")));
+        assertEquals(0, c.low().compareTo(bd("90")));
+        assertEquals(0, c.close().compareTo(bd("90")), "close = last minute's close");
+        assertEquals(0, c.volumeBase().compareTo(bd("4")));
+        assertEquals(3, c.tradeCount());
+    }
+
+    @Test
+    void unsupportedIntervalRejected() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> marketdata.candles(freshPair(), "3m", 10));
+    }
+
     private static String pad(int n) {
         return String.format("%04d", n);
     }
