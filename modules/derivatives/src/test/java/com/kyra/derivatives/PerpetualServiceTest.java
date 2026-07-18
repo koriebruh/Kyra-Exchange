@@ -173,6 +173,44 @@ class PerpetualServiceTest {
     }
 
     @Test
+    void partialCloseRealizesProportionalPnlAndKeepsRemainder() {
+        String u = fundedUser("30000");
+        String sym = symbol();
+        // 2 contracts @ 50000, margin 10000 -> main 20000
+        String pid = perp.openPosition(u, sym, PositionSide.LONG, bd("2"), bd("50000"), Money.of(USDT, bd("10000")));
+        markPrices.setPrice(sym, bd("55000")); // +5000/contract
+
+        perp.reducePosition(pid, bd("1")); // close 1 of 2
+        // released margin 5000 + pnl 5000 = 10000 back -> main 30000
+        assertEquals(Money.of("USDT", "30000"), ledger.balanceOf(u, USDT).available());
+
+        var pos = perp.position(pid).orElseThrow();
+        assertEquals(0, pos.size().compareTo(bd("1")), "half remains open");
+        assertEquals(0, pos.margin().compareTo(bd("5000")), "half the margin remains");
+        assertEquals(0, pos.entryPrice().compareTo(bd("50000")), "entry price unchanged");
+    }
+
+    @Test
+    void reduceByFullSizeClosesPosition() {
+        String u = fundedUser("30000");
+        String sym = symbol();
+        String pid = perp.openPosition(u, sym, PositionSide.LONG, bd("2"), bd("50000"), Money.of(USDT, bd("10000")));
+        markPrices.setPrice(sym, bd("50000"));
+        perp.reducePosition(pid, bd("2"));
+        assertTrue(perp.position(pid).isEmpty(), "reducing the full size closes the position");
+    }
+
+    @Test
+    void reduceBeyondSizeRejected() {
+        String u = fundedUser("30000");
+        String sym = symbol();
+        String pid = perp.openPosition(u, sym, PositionSide.LONG, bd("1"), bd("50000"), Money.of(USDT, bd("5000")));
+        markPrices.setPrice(sym, bd("50000"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> perp.reducePosition(pid, bd("2")));
+    }
+
+    @Test
     void ledgerConservesValueAcrossPerpLifecycle() {
         String u = fundedUser("10000");
         String sym = symbol();

@@ -109,6 +109,53 @@ public class PerpetualService implements PerpetualApi {
 
     @Override
     @Transactional
+    public void reducePosition(String positionId, BigDecimal closeSize) {
+        PositionEntity p = openPositionOrNull(positionId);
+        if (p == null) {
+            return;
+        }
+        if (closeSize == null || closeSize.signum() <= 0 || closeSize.compareTo(p.size) > 0) {
+            throw new IllegalArgumentException("closeSize must be in (0, position size]");
+        }
+        if (closeSize.compareTo(p.size) == 0) {
+            settle(p, markOf(p.symbol), "CLOSED");
+            return;
+        }
+
+        BigDecimal mark = markOf(p.symbol);
+        AssetId c = AssetId.of(p.collateralAsset);
+        // proportional margin released; PnL realized on the closed portion
+        BigDecimal marginReleased = p.margin.multiply(closeSize)
+                .divide(p.size, 18, java.math.RoundingMode.DOWN);
+        BigDecimal pnl = mark.subtract(p.entryPrice).multiply(closeSize)
+                .multiply(BigDecimal.valueOf(PositionSide.valueOf(p.side).sign()));
+        BigDecimal netToUser = marginReleased.add(pnl);
+        BigDecimal userMainDelta = netToUser.max(BigDecimal.ZERO);
+        BigDecimal shortfall = netToUser.signum() < 0 ? netToUser.negate() : BigDecimal.ZERO;
+
+        List<EntryLine> lines = new ArrayList<>();
+        lines.add(EntryLine.of(AccountKey.userMargin(p.userId, c), Money.of(c, marginReleased).negated()));
+        if (userMainDelta.signum() > 0) {
+            lines.add(EntryLine.of(AccountKey.userMain(p.userId, c), Money.of(c, userMainDelta)));
+        }
+        if (pnl.signum() != 0) {
+            lines.add(EntryLine.of(AccountKey.perp(c), Money.of(c, pnl).negated()));
+        }
+        if (shortfall.signum() > 0) {
+            lines.add(EntryLine.of(AccountKey.insurance(c), Money.of(c, shortfall).negated()));
+        }
+        ledger.post(new JournalRequest(JournalType.PERP_SETTLEMENT, "perp-reduce:" + Ids.newUlid(), lines));
+
+        em.createQuery("update PositionEntity set size = :sz, margin = :mg where id = :id")
+                .setParameter("sz", p.size.subtract(closeSize))
+                .setParameter("mg", p.margin.subtract(marginReleased))
+                .setParameter("id", p.id)
+                .executeUpdate();
+        LOG.infof("perp reduced: id=%s by %s (pnl=%s)", positionId, closeSize, pnl);
+    }
+
+    @Override
+    @Transactional
     public boolean liquidateIfUnderwater(String positionId) {
         PositionEntity p = openPositionOrNull(positionId);
         if (p == null) {

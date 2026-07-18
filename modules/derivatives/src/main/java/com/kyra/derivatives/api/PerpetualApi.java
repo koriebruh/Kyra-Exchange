@@ -27,6 +27,15 @@ public interface PerpetualApi {
     void closePosition(String positionId);
 
     /**
+     * Partially close a position: realize PnL on {@code closeSize} and release the
+     * proportional margin; the remainder stays open at the same entry price.
+     * Closing the full size behaves like {@link #closePosition}.
+     *
+     * @throws IllegalArgumentException if closeSize is not in (0, position size]
+     */
+    void reducePosition(String positionId, java.math.BigDecimal closeSize);
+
+    /**
      * Apply a funding round to all open positions on a symbol (kyra-doc/modules/09
      * Part B): with a positive rate longs pay shorts, settled against margin.
      * Idempotent by {@code roundId}. Returns the number of positions funded.
