@@ -86,14 +86,17 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
   - PerpetualService: openPosition (locks margin), close/liquidate (mark-price PnL,
     insurance backstop so users never go negative), funding rate (long pays short,
     idempotent by round). V1400/V1401.
-- ALL 15 domain modules built. All 6 phases delivered at least foundationally.
+- ALL 15 domain modules built. All 6 phases delivered.
+- Refinements DONE this pass: derivatives position averaging + partial close;
+  account freeze (compliance freeze/unfreeze, gates order + withdrawal, admin
+  freeze/unfreeze audited); admin REST (/v1/admin, ADMIN role); wallet custody
+  reconciliation (vs proof-of-reserves liabilities, critical alarm).
 - Remaining (documented in TECHDEBT):
   - tax (15): legal-blocked (mechanism + rates need consultant; IDR kurs).
-  - derivatives refinements: position averaging/partial close, ADL, cross/isolated
-    margin modes, real mark-price+funding-premium feed.
-  - Small/unblocked follow-ups: admin freeze/config + admin REST, wallet
-    reconciliation + deposit detector (mock), MM inventory skew, anti-phishing code,
-    velocity limits (Valkey), more notification producers.
+  - derivatives: ADL, cross/isolated margin modes, real mark-price+funding-premium feed.
+  - Small/unblocked follow-ups: deposit detector (webhook/poll, mock), MM inventory
+    skew + re-quote, anti-phishing code, velocity limits (Valkey), more notification
+    producers, admin config/kill-switch ops.
   - Vendor-blocked: real Fystack/KYC/email/price-feed integrations, PFAK/OJK licence.
   - fee (11) DONE — maker/taker rates frozen per order, deducted at settlement to
     kyra:fee:*. Tiers/overrides planned.
