@@ -30,6 +30,16 @@ public interface WalletApi {
      */
     String requestWithdrawal(String userId, AssetId asset, Money amount, String toAddress);
 
+    /**
+     * Approve a withdrawal awaiting manual review and submit it to custody
+     * (kyra-doc/modules/08, F3). Called by the admin module. No-op unless the
+     * withdrawal is in PENDING_REVIEW.
+     */
+    void approveWithdrawal(String withdrawId);
+
+    /** Reject a withdrawal awaiting review: release the held funds. Called by admin. */
+    void rejectWithdrawal(String withdrawId, String reason);
+
     /** Finalize a withdrawal confirmed on-chain: held funds leave to external, fee to the exchange. */
     void completeWithdrawal(String withdrawId, String txid);
 

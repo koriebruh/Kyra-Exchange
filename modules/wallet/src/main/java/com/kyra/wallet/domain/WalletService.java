@@ -20,8 +20,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,14 +45,18 @@ public class WalletService implements WalletApi {
     private final FeeApi fees;
     private final CustodyProvider custody;
     private final ComplianceApi compliance;
+    private final BigDecimal autoApproveThreshold;
 
     public WalletService(EntityManager em, AccountApi ledger, FeeApi fees, CustodyProvider custody,
-            ComplianceApi compliance) {
+            ComplianceApi compliance,
+            @ConfigProperty(name = "kyra.wallet.auto-approve-threshold", defaultValue = "1000")
+            BigDecimal autoApproveThreshold) {
         this.em = em;
         this.ledger = ledger;
         this.fees = fees;
         this.custody = custody;
         this.compliance = compliance;
+        this.autoApproveThreshold = autoApproveThreshold;
     }
 
     @Override
@@ -128,10 +134,43 @@ public class WalletService implements WalletApi {
         w.requestedAt = Instant.now();
         em.persist(w);
 
-        w.providerRef = custody.submitWithdrawal(id, asset, toAddress, amount);
-        w.status = "BROADCASTING";
-        LOG.infof("withdrawal submitted: id=%s user=%s %s -> %s", id, userId, amount, toAddress);
+        // Small withdrawals auto-approve; larger ones wait for manual review (4-eyes).
+        if (amount.amount().compareTo(autoApproveThreshold) <= 0) {
+            submitToCustody(w);
+        } else {
+            w.status = "PENDING_REVIEW";
+            LOG.infof("withdrawal queued for review: id=%s user=%s %s", id, userId, amount);
+        }
         return id;
+    }
+
+    @Override
+    @Transactional
+    public void approveWithdrawal(String withdrawId) {
+        WithdrawalEntity w = em.find(WithdrawalEntity.class, withdrawId);
+        if (w == null || !"PENDING_REVIEW".equals(w.status)) {
+            return; // not awaiting review (idempotent)
+        }
+        submitToCustody(w);
+    }
+
+    @Override
+    @Transactional
+    public void rejectWithdrawal(String withdrawId, String reason) {
+        WithdrawalEntity w = em.find(WithdrawalEntity.class, withdrawId);
+        if (w == null || !"PENDING_REVIEW".equals(w.status)) {
+            return;
+        }
+        releaseHold(w);
+        w.status = "REJECTED";
+        LOG.warnf("withdrawal rejected by admin: id=%s reason=%s (funds released)", withdrawId, reason);
+    }
+
+    private void submitToCustody(WithdrawalEntity w) {
+        AssetId asset = AssetId.of(w.asset);
+        w.providerRef = custody.submitWithdrawal(w.id, asset, w.toAddress, Money.of(asset, w.amount));
+        w.status = "BROADCASTING";
+        LOG.infof("withdrawal submitted: id=%s %s -> %s", w.id, w.amount, w.toAddress);
     }
 
     @Override
@@ -164,14 +203,18 @@ public class WalletService implements WalletApi {
     @Transactional
     public void failWithdrawal(String withdrawId, String reason) {
         WithdrawalEntity w = em.find(WithdrawalEntity.class, withdrawId);
-        if (w == null || "COMPLETED".equals(w.status) || "FAILED".equals(w.status)) {
+        if (w == null || "COMPLETED".equals(w.status) || "FAILED".equals(w.status) || "REJECTED".equals(w.status)) {
             return;
         }
-        AssetId asset = AssetId.of(w.asset);
-        Money total = Money.of(asset, w.amount).plus(Money.of(asset, w.fee));
-        ledger.release(w.userId, total, "withdraw-release:" + withdrawId);
+        releaseHold(w);
         w.status = "FAILED";
         LOG.warnf("withdrawal failed: id=%s reason=%s (funds released)", withdrawId, reason);
+    }
+
+    private void releaseHold(WithdrawalEntity w) {
+        AssetId asset = AssetId.of(w.asset);
+        Money total = Money.of(asset, w.amount).plus(Money.of(asset, w.fee));
+        ledger.release(w.userId, total, "withdraw-release:" + w.id);
     }
 
     private DepositEntity findDepositByTxid(String txid) {
