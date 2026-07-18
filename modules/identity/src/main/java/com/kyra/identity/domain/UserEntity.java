@@ -32,6 +32,10 @@ public class UserEntity {
     @Column(name = "email_verified_at")
     public Instant emailVerifiedAt;
 
+    /** Anti-phishing phrase shown in official emails (kyra-doc/modules/01, F2b). */
+    @Column(name = "anti_phishing_code")
+    public String antiPhishingCode;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     public Instant createdAt;
 }

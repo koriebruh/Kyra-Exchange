@@ -49,6 +49,15 @@ public interface IdentityApi {
     /** Revoke the session behind a refresh token. Idempotent. */
     void logout(String refreshToken);
 
+    /**
+     * Set the user's anti-phishing phrase (kyra-doc/modules/01, F2b). Shown in
+     * official emails so an email lacking it is recognisable as phishing.
+     */
+    void setAntiPhishingCode(String userId, String phrase);
+
+    /** The user's anti-phishing phrase, or null if unset. */
+    String antiPhishingCode(String userId);
+
     /** Active sessions for a user, newest first. */
     List<SessionView> sessions(String userId);
 

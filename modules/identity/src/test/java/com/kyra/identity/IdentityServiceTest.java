@@ -163,6 +163,18 @@ class IdentityServiceTest {
     }
 
     @Test
+    void antiPhishingCodeIsStoredAndRetrievable() {
+        String email = uniqueEmail();
+        String userId = registerAndVerify(email, "supersecret-1");
+        assertTrue(identity.antiPhishingCode(userId) == null);
+        identity.setAntiPhishingCode(userId, "purple-tiger-42");
+        assertEquals("purple-tiger-42", identity.antiPhishingCode(userId));
+        // clearing
+        identity.setAntiPhishingCode(userId, "  ");
+        assertTrue(identity.antiPhishingCode(userId) == null);
+    }
+
+    @Test
     void suspendedUserCannotLogin() {
         String email = uniqueEmail();
         String userId = registerAndVerify(email, "supersecret-1");

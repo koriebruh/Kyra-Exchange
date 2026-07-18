@@ -23,7 +23,7 @@ Format: **Apa** · **Ditunda karena** · **Ref spec** · **Kerjakan saat**.
   Task kecil, tidak lagi blocked — buildable kapan saja.
 - **Ref spec:** [modules/01-identity.md](modules/01-identity.md) F2b +
   [modules/13-notification.md](modules/13-notification.md).
-- **Kerjakan saat:** increment berikutnya (tidak blocked).
+- **Kerjakan saat:** penyimpanan+API SUDAH jadi (setAntiPhishingCode/antiPhishingCode). Sisa: render frasa di email login-alert/withdraw (butuh producer email itu dibangun).
 
 ### Passkeys / WebAuthn
 - **Apa:** passkey sebagai 2FA; hardware key wajib untuk admin.

@@ -181,6 +181,23 @@ public class IdentityService implements IdentityApi {
 
     @Override
     @Transactional
+    public void setAntiPhishingCode(String userId, String phrase) {
+        UserEntity user = em.find(UserEntity.class, userId);
+        if (user == null) {
+            throw new AuthenticationException();
+        }
+        user.antiPhishingCode = (phrase == null || phrase.isBlank()) ? null : phrase.trim();
+    }
+
+    @Override
+    @Transactional
+    public String antiPhishingCode(String userId) {
+        UserEntity user = em.find(UserEntity.class, userId);
+        return user == null ? null : user.antiPhishingCode;
+    }
+
+    @Override
+    @Transactional
     public List<SessionView> sessions(String userId) {
         return em.createQuery(
                         "from SessionEntity where userId = :u and revokedAt is null order by createdAt desc",
