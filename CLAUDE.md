@@ -73,9 +73,22 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
   - STILL VENDOR-BLOCKED (TECHDEBT): real Fystack custody, real KYC provider,
     real email/SMTP, deposit detector (webhook/poll), reconciliation vs real
     custody, tax IDR conversion.
-  - Buildable next (not blocked): 4-eyes for large withdrawals, admin freeze/
-    config ops + admin REST, wallet reconciliation logic (mock), Proof of Reserves,
-    liquidity MM bot (needs a price feed), tax mechanism (rates config, IDR blocked).
+  - 4-eyes for large withdrawals DONE (wallet.requiredApprovals + admin distinct
+    approvers, V1201).
+- Phase 5 (launch & liquidity) substantially DONE:
+  - liquidity (14) MM bot — quotes N bid/ask around a mock reference price via the
+    order path. ReferencePriceProvider + mock. Inventory skew / re-quote next.
+  - Proof of Reserves (16 §7) — Merkle liabilities commitment over user balances
+    (account.ProofOfReservesApi), inclusion verification.
+- ALL 14 domain modules built (spot exchange complete across phases 1-5).
+- Remaining:
+  - tax (15): legal-blocked (mechanism + rates need consultant; IDR kurs). TECHDEBT.
+  - Phase 6 derivatives: large, needs mark-price infra (mockable) + margin/funding/
+    liquidation engine. TECHDEBT.
+  - Small/unblocked follow-ups: admin freeze/config ops + admin REST, wallet
+    reconciliation + deposit detector (mock), MM inventory skew, anti-phishing code,
+    velocity limits (Valkey), other notification producers.
+  - Vendor-blocked: real Fystack/KYC/email/price-feed integrations.
   - fee (11) DONE — maker/taker rates frozen per order, deducted at settlement to
     kyra:fee:*. Tiers/overrides planned.
   - risk (09 spot) DONE — checkOrder (max notional + price band) wired into order

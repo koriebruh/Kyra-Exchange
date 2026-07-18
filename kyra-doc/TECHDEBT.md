@@ -51,6 +51,29 @@ Format: **Apa** · **Ditunda karena** · **Ref spec** · **Kerjakan saat**.
 - **Ref spec:** [modules/13-notification.md](modules/13-notification.md) Trigger table.
 - **Kerjakan saat:** increment berikutnya.
 
+### Pajak PPh/PPN per trade (modul 15)
+- **Apa:** withholding PPh (penjual) + PPN (pembeli) per trade ke akun
+  `kyra:tax:*`, setor & lapor DJP, konversi nilai ke IDR.
+- **Ditunda karena:** mekanisme (siapa bayar apa, basis perhitungan, status PPN
+  terkini pasca-reklasifikasi ke aset keuangan) + rate WAJIB dikonfirmasi
+  konsultan pajak — spec modul 15 sendiri menandai ini TODO. Konversi IDR butuh
+  sumber kurs pajak (KMK). Membangun mekanisme tebakan = risiko salah hukum.
+  Struktur withholding-nya identik fee (sudah ada polanya), jadi implementasi
+  cepat begitu rate+basis dikonfirmasi.
+- **Ref spec:** [modules/15-tax.md](modules/15-tax.md).
+- **Kerjakan saat:** konsultan pajak konfirmasi rate/basis/mekanisme + ada sumber
+  kurs IDR.
+
+### Fase 6 — Derivatives (perpetual futures)
+- **Apa:** mark price/index engine, margin account (cross/isolated), funding
+  rate 8-jam, liquidation engine + insurance fund + ADL.
+- **Ditunda karena:** butuh **feed mark/index price eksternal** (bisa di-mock
+  seperti ReferencePriceProvider) + engine margin/liquidation yang besar &
+  saling terkait. Fase terpisah, effort besar; ledger sudah menyiapkan slot
+  `account_type` (margin) dari awal.
+- **Ref spec:** [modules/09-risk.md](modules/09-risk.md) Bagian B + README fase 6.
+- **Kerjakan saat:** fase 6 dimulai (butuh sesi fokus tersendiri).
+
 ---
 
 *Saat sebuah fitur dikerjakan: hapus dari sini. Saat menemukan fitur baru yang
