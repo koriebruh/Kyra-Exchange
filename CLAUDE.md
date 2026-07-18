@@ -46,11 +46,18 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
     TradeSettled (synchronous, atomic with settlement), depth snapshot from
     engine. REST: /v1/market/candles|ticker|depth. V700 candles.
   - PHASE 2 EXIT CRITERIA MET (two accounts trade + recovery).
+- Phase 3 (public API & market data) DONE:
+  - marketdata REST (candles multi-interval, ticker, depth) + public WebSocket
+    stream (/v1/stream, trades pushed on TradeSettled, fire-and-forget).
+  - Valkey-backed per-IP rate limiting (X-RateLimit-* headers, 429 + Retry-After).
+  - idempotent order placement by client_order_id.
+  - OpenAPI spec at /q/openapi.
   - Remaining phase 2/3 (NOT blocked, build next): MARKET orders (quote-budget
     for market-buy), STOP/OCO trigger engine, WebSocket streams (07 F5),
     multi-interval candles (5m/1h/…), rate limiting (Valkey), idempotency-key
     enforcement on money/order endpoints.
-- Phase 4+ modules — some blocked by external deps (see TECHDEBT.md):
+- Phases 1-3 DONE. Next up:
+- Phase 4 (real money) — BLOCKED by external deps (see TECHDEBT.md):
   - wallet (08): BLOCKED — needs Fystack API integration.
   - compliance (10): BLOCKED — needs KYC provider.
   - notification (13): BLOCKED — needs email provider.
