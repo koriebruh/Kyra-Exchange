@@ -12,5 +12,7 @@ public enum JournalType {
     TRADE_SETTLEMENT,
     FEE,
     TRANSFER,
+    PERP_MARGIN,
+    PERP_SETTLEMENT,
     ADJUSTMENT
 }

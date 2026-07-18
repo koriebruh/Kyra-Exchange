@@ -27,6 +27,7 @@
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-admin</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-notification</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>com.kyra</groupId><artifactId>kyra-liquidity</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>com.kyra</groupId><artifactId>kyra-derivatives</artifactId><version>${project.version}</version></dependency>
 
         <!-- quarkus -->
         <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-arc</artifactId></dependency>

@@ -23,6 +23,7 @@
         <module>modules/admin</module>
         <module>modules/notification</module>
         <module>modules/liquidity</module>
+        <module>modules/derivatives</module>
         <module>kyra-app</module>
     </modules>
 

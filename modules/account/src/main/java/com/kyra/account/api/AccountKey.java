@@ -29,16 +29,31 @@ public record AccountKey(String value) {
         }
     }
 
-    /** Account subtype within a user account. Extensible (margin arrives in phase 6). */
+    /** Account subtype within a user account. Extensible; MARGIN is derivatives collateral. */
     public enum Type {
         MAIN("main"),
-        HOLD("hold");
+        HOLD("hold"),
+        MARGIN("margin");
 
         private final String suffix;
 
         Type(String suffix) {
             this.suffix = suffix;
         }
+    }
+
+    public static AccountKey userMargin(String userId, AssetId asset) {
+        return user(userId, asset, Type.MARGIN);
+    }
+
+    /** Exchange perpetual-settlement account (counterparty for realized PnL). */
+    public static AccountKey perp(AssetId asset) {
+        return new AccountKey("kyra:perp:" + asset);
+    }
+
+    /** Insurance fund per asset (absorbs liquidation shortfalls). */
+    public static AccountKey insurance(AssetId asset) {
+        return new AccountKey("kyra:insurance:" + asset);
     }
 
     public static AccountKey user(String userId, AssetId asset, Type type) {
