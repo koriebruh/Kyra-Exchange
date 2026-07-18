@@ -31,6 +31,13 @@ public interface WalletApi {
     String requestWithdrawal(String userId, AssetId asset, Money amount, String toAddress);
 
     /**
+     * How many distinct admin approvals a withdrawal needs before it may be
+     * submitted (kyra-doc/modules/12, 4-eyes): 2 above the dual-approval
+     * threshold, otherwise 1.
+     */
+    int requiredApprovals(String withdrawId);
+
+    /**
      * Approve a withdrawal awaiting manual review and submit it to custody
      * (kyra-doc/modules/08, F3). Called by the admin module. No-op unless the
      * withdrawal is in PENDING_REVIEW.

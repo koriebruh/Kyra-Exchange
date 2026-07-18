@@ -69,6 +69,27 @@ class AdminServiceTest {
     }
 
     @Test
+    void largeWithdrawalNeedsTwoDistinctApprovers() {
+        // 8000 > dual-approval threshold 5000 -> needs 2 approvers (4-eyes)
+        String u = Ids.newUlid();
+        wallet.creditDeposit(u, Money.of("USDT", "10000"), "tx-" + Ids.newUlid());
+        compliance.submitKyc(u, KycLevel.L1);
+        String wid = wallet.requestWithdrawal(u, USDT, Money.of("USDT", "8000"), "clean-dest");
+        assertEquals(2, wallet.requiredApprovals(wid));
+
+        admin.approveWithdrawal("admin-01", wid);
+        assertEquals("PENDING_REVIEW", withdrawalStatus(wid), "one approval is not enough");
+
+        // same admin approving again must not satisfy 4-eyes
+        admin.approveWithdrawal("admin-01", wid);
+        assertEquals("PENDING_REVIEW", withdrawalStatus(wid), "same admin cannot self-approve twice");
+
+        // a second, distinct admin completes the 4-eyes
+        admin.approveWithdrawal("admin-02", wid);
+        assertEquals("BROADCASTING", withdrawalStatus(wid), "two distinct approvers submit the withdrawal");
+    }
+
+    @Test
     void auditTrailIsAppendOnly() {
         String wid = pendingWithdrawal();
         admin.approveWithdrawal("admin-01", wid);

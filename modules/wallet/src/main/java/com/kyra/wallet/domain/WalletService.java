@@ -46,17 +46,30 @@ public class WalletService implements WalletApi {
     private final CustodyProvider custody;
     private final ComplianceApi compliance;
     private final BigDecimal autoApproveThreshold;
+    private final BigDecimal dualApprovalThreshold;
 
     public WalletService(EntityManager em, AccountApi ledger, FeeApi fees, CustodyProvider custody,
             ComplianceApi compliance,
             @ConfigProperty(name = "kyra.wallet.auto-approve-threshold", defaultValue = "1000")
-            BigDecimal autoApproveThreshold) {
+            BigDecimal autoApproveThreshold,
+            @ConfigProperty(name = "kyra.wallet.dual-approval-threshold", defaultValue = "1000000000")
+            BigDecimal dualApprovalThreshold) {
         this.em = em;
         this.ledger = ledger;
         this.fees = fees;
         this.custody = custody;
         this.compliance = compliance;
         this.autoApproveThreshold = autoApproveThreshold;
+        this.dualApprovalThreshold = dualApprovalThreshold;
+    }
+
+    @Override
+    public int requiredApprovals(String withdrawId) {
+        WithdrawalEntity w = em.find(WithdrawalEntity.class, withdrawId);
+        if (w == null) {
+            return 1;
+        }
+        return w.amount.compareTo(dualApprovalThreshold) > 0 ? 2 : 1;
     }
 
     @Override
