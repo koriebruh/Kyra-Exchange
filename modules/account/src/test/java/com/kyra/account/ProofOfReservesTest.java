@@ -61,6 +61,15 @@ class ProofOfReservesTest {
     }
 
     @Test
+    void untradedAssetHasEmptySnapshot() {
+        AssetId asset = AssetId.of("EMP" + (System.nanoTime() % 100000));
+        ReservesSnapshot snap = por.snapshot(asset);
+        assertEquals(0, snap.leafCount());
+        assertEquals(Money.zero(asset), snap.totalLiabilities());
+        assertEquals("", snap.merkleRoot());
+    }
+
+    @Test
     void rootChangesWhenABalanceChanges() {
         AssetId asset = AssetId.of("POC" + (System.nanoTime() % 100000));
         String u = deposit(asset, "100");

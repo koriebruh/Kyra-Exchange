@@ -86,6 +86,26 @@ class LiquidityServiceTest {
     }
 
     @Test
+    void skipsLevelsBelowMinNotional() {
+        int n = SEQ.incrementAndGet();
+        AssetId base = AssetId.of("MNB" + n);
+        AssetId quote = AssetId.of("MNQ" + n);
+        market.registerAsset(new Asset(base, "b", 8, AssetStatus.ACTIVE, 3));
+        market.registerAsset(new Asset(quote, "q", 6, AssetStatus.ACTIVE, 6));
+        PairSymbol pair = new PairSymbol(base, quote);
+        // minNotional 10; ref 50 * size 0.1 = 5 notional -> every level below minimum
+        market.registerPair(new Pair(pair, bd("1"), bd("0.001"), bd("10"),
+                bd("0.001"), bd("100000"), 500, PairStatus.ACTIVE));
+
+        String mm = Ids.newUlid();
+        fund(mm, base, "10");
+        fund(mm, quote, "1000000");
+        refPrices.setPrice(pair, bd("50"));
+
+        assertEquals(0, liquidity.quote(pair, mm), "no order meets min notional -> none placed");
+    }
+
+    @Test
     void noQuotesWhenReferencePriceMissing() {
         int n = SEQ.incrementAndGet();
         AssetId base = AssetId.of("NRB" + n);

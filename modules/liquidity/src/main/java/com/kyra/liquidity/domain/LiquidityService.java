@@ -68,12 +68,15 @@ public class LiquidityService implements LiquidityApi {
             BigDecimal offset = spreadFraction.multiply(BigDecimal.valueOf(i));
             BigDecimal bidPrice = floorTo(ref.multiply(BigDecimal.ONE.subtract(offset)), pair.tickSize());
             BigDecimal askPrice = ceilTo(ref.multiply(BigDecimal.ONE.add(offset)), pair.tickSize());
-            if (bidPrice.signum() > 0) {
+            // skip a level whose notional would violate the pair's minimum
+            if (bidPrice.signum() > 0 && meetsMinNotional(bidPrice, size, pair)) {
                 place(mmUserId, pairSymbol, OrderSide.BUY, bidPrice, size);
                 placed++;
             }
-            place(mmUserId, pairSymbol, OrderSide.SELL, askPrice, size);
-            placed++;
+            if (meetsMinNotional(askPrice, size, pair)) {
+                place(mmUserId, pairSymbol, OrderSide.SELL, askPrice, size);
+                placed++;
+            }
         }
         LOG.infof("MM quoted %s: %d orders around ref %s", pairSymbol, placed, ref);
         return placed;
@@ -81,6 +84,10 @@ public class LiquidityService implements LiquidityApi {
 
     private void place(String mmUserId, PairSymbol pair, OrderSide side, BigDecimal price, BigDecimal size) {
         orders.place(new PlaceOrder(mmUserId, pair, side, TimeInForce.GTC, price, size, "mm-" + Ids.newUlid()));
+    }
+
+    private static boolean meetsMinNotional(BigDecimal price, BigDecimal size, Pair pair) {
+        return price.multiply(size).compareTo(pair.minNotional()) >= 0;
     }
 
     private static BigDecimal floorTo(BigDecimal value, BigDecimal increment) {

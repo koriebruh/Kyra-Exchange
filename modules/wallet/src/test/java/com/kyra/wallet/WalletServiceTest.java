@@ -73,6 +73,7 @@ class WalletServiceTest {
     @Test
     void withdrawalHoldsThenCompletesMovingFundsOutWithFee() {
         String u = verifiedUser("1000");
+        BigDecimal feeBefore = feeBalance("USDT"); // kyra:fee is global — assert the delta
 
         // withdraw 500 + fee 1 -> hold 501
         String wid = wallet.requestWithdrawal(u, USDT, Money.of("USDT", "500"), "dest-address");
@@ -82,7 +83,8 @@ class WalletServiceTest {
         wallet.completeWithdrawal(wid, "onchain-tx");
         assertEquals(Money.of("USDT", "499"), ledger.balanceOf(u, USDT).available());
         assertEquals(Money.zero(USDT), ledger.balanceOf(u, USDT).onHold());
-        assertEquals(0, feeBalance("USDT").compareTo(new BigDecimal("1")), "withdraw fee -> kyra:fee");
+        assertEquals(0, feeBalance("USDT").subtract(feeBefore).compareTo(new BigDecimal("1")),
+                "withdraw fee -> kyra:fee");
     }
 
     @Test
@@ -114,6 +116,29 @@ class WalletServiceTest {
     }
 
     @Test
+    void completeWithdrawalIsIdempotent() {
+        String u = verifiedUser("1000");
+        BigDecimal feeBefore = feeBalance("USDT");
+        String wid = wallet.requestWithdrawal(u, USDT, Money.of("USDT", "500"), "dest"); // auto-approved
+        wallet.completeWithdrawal(wid, "onchain-tx");
+        wallet.completeWithdrawal(wid, "onchain-tx"); // replay must not move funds twice
+
+        assertEquals(Money.of("USDT", "499"), ledger.balanceOf(u, USDT).available());
+        assertEquals(Money.zero(USDT), ledger.balanceOf(u, USDT).onHold());
+        assertEquals(0, feeBalance("USDT").subtract(feeBefore).compareTo(new BigDecimal("1")),
+                "fee credited exactly once despite double complete");
+    }
+
+    @Test
+    void rejectingAnAlreadySubmittedWithdrawalIsNoOp() {
+        String u = verifiedUser("1000");
+        String wid = wallet.requestWithdrawal(u, USDT, Money.of("USDT", "500"), "dest"); // auto -> BROADCASTING
+        // admin reject only applies while PENDING_REVIEW; a submitted one is untouched
+        wallet.rejectWithdrawal(wid, "too late");
+        assertEquals(Money.of("USDT", "501"), ledger.balanceOf(u, USDT).onHold(), "still held, not released");
+    }
+
+    @Test
     void failedWithdrawalReleasesHeldFunds() {
         String u = verifiedUser("1000");
         String wid = wallet.requestWithdrawal(u, USDT, Money.of("USDT", "500"), "dest");
@@ -126,8 +151,8 @@ class WalletServiceTest {
 
     @Transactional
     BigDecimal feeBalance(String asset) {
-        return (BigDecimal) em.createNativeQuery(
-                        "select coalesce(amount,0) from account.balances where account_key = :k")
-                .setParameter("k", "kyra:fee:" + asset).getSingleResult();
+        var rows = em.createNativeQuery("select amount from account.balances where account_key = :k")
+                .setParameter("k", "kyra:fee:" + asset).getResultList();
+        return rows.isEmpty() ? BigDecimal.ZERO : (BigDecimal) rows.get(0);
     }
 }
