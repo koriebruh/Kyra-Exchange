@@ -56,11 +56,16 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
     for market-buy), STOP/OCO trigger engine, WebSocket streams (07 F5),
     multi-interval candles (5m/1h/…), rate limiting (Valkey), idempotency-key
     enforcement on money/order endpoints.
-- Phases 1-3 DONE. Next up:
-- Phase 4 (real money) — BLOCKED by external deps (see TECHDEBT.md):
-  - wallet (08): BLOCKED — needs Fystack API integration.
-  - compliance (10): BLOCKED — needs KYC provider.
-  - notification (13): BLOCKED — needs email provider.
+- Phases 1-3 DONE. Phase 4 in progress:
+  - wallet (08) INTERNAL LOGIC DONE against a mock custody backend — deposit
+    address, creditDeposit (ledger, idempotent by txid), requestWithdrawal
+    (hold+fee), completeWithdrawal (-> external, fee -> kyra:fee), failWithdrawal
+    (release). CustodyProvider interface; MockCustodyProvider. V800.
+    STILL VENDOR-BLOCKED: real Fystack impl, deposit detector (webhook/poll),
+    reconciliation job, withdraw approval/2FA/whitelist.
+  - compliance (10): BLOCKED — needs KYC provider (could build KycProvider
+    interface + mock like wallet did, if desired).
+  - notification (13): BLOCKED — needs email provider (same pattern possible).
   - fee (11) DONE — maker/taker rates frozen per order, deducted at settlement to
     kyra:fee:*. Tiers/overrides planned.
   - risk (09 spot) DONE — checkOrder (max notional + price band) wired into order
