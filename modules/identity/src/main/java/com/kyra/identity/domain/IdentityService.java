@@ -44,14 +44,17 @@ public class IdentityService implements IdentityApi {
     private final TokenService tokens;
     private final SessionRevoker revoker;
     private final TwoFactorService twoFactor;
+    private final com.kyra.notification.api.NotificationApi notifications;
 
     public IdentityService(EntityManager em, PasswordHasher hasher, TokenService tokens,
-            SessionRevoker revoker, TwoFactorService twoFactor) {
+            SessionRevoker revoker, TwoFactorService twoFactor,
+            com.kyra.notification.api.NotificationApi notifications) {
         this.em = em;
         this.hasher = hasher;
         this.tokens = tokens;
         this.revoker = revoker;
         this.twoFactor = twoFactor;
+        this.notifications = notifications;
     }
 
     @Override
@@ -81,6 +84,12 @@ public class IdentityService implements IdentityApi {
         v.tokenHash = tokens.hash(rawToken);
         v.expiresAt = Instant.now().plus(EMAIL_TOKEN_TTL);
         em.persist(v);
+
+        // Deliver the verification email (idempotent by the verification id). The
+        // raw token is still returned for internal callers/tests; the REST layer
+        // never exposes it.
+        notifications.notifyEmail(normalized, com.kyra.notification.api.NotificationType.EMAIL_VERIFICATION,
+                java.util.Map.of("token", rawToken), "email-verify:" + v.id);
 
         return new RegisterResult(user.id, rawToken);
     }

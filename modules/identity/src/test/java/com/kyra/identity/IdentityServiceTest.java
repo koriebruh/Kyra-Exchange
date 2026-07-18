@@ -34,6 +34,9 @@ class IdentityServiceTest {
     @Inject
     EntityManager em;
 
+    @Inject
+    com.kyra.notification.domain.RecordingEmailSender emailSender;
+
     private String uniqueEmail() {
         return "user-" + UUID.randomUUID() + "@kyra.test";
     }
@@ -148,6 +151,15 @@ class IdentityServiceTest {
 
         identity.revokeSession(userId, sessions.get(0).sessionId());
         assertEquals(1, identity.sessions(userId).size());
+    }
+
+    @Test
+    void registrationSendsVerificationEmail() {
+        String email = uniqueEmail();
+        identity.register(email, "supersecret-1".toCharArray());
+        boolean sent = emailSender.sent().stream()
+                .anyMatch(e -> e.to().equals(email) && e.subject().contains("Verify"));
+        assertTrue(sent, "a verification email is delivered on registration");
     }
 
     @Test
