@@ -112,6 +112,15 @@ public class OrderService implements OrderApi {
     // ----- placement -----
 
     private OrderView doPlace(PlaceOrder cmd) {
+        // Idempotency: re-submitting the same client_order_id returns the original
+        // order unchanged (kyra-doc/modules/04), never places a second one.
+        if (cmd.clientOrderId() != null) {
+            OrderEntity existing = findByClientOrderId(cmd.userId(), cmd.clientOrderId());
+            if (existing != null) {
+                return view(existing);
+            }
+        }
+
         Pair pair = market.pair(cmd.pair())
                 .orElseThrow(() -> new OrderRejectedException("PAIR_UNKNOWN", "unknown pair: " + cmd.pair()));
 
@@ -119,9 +128,6 @@ public class OrderService implements OrderApi {
         if (!validation.valid()) {
             throw new OrderRejectedException(validation.error().name(),
                     "order rejected: " + validation.error());
-        }
-        if (duplicateClientId(cmd.userId(), cmd.clientOrderId())) {
-            throw new OrderRejectedException("DUPLICATE_CLIENT_ORDER_ID", "client_order_id already used");
         }
 
         BigDecimal notional = cmd.price().multiply(cmd.qty());
@@ -274,16 +280,13 @@ public class OrderService implements OrderApi {
         return o;
     }
 
-    private boolean duplicateClientId(String userId, String clientOrderId) {
-        if (clientOrderId == null) {
-            return false;
-        }
+    private OrderEntity findByClientOrderId(String userId, String clientOrderId) {
         try {
-            em.createQuery("select o.id from OrderEntity o where o.userId = :u and o.clientOrderId = :c", String.class)
+            return em.createQuery(
+                            "from OrderEntity where userId = :u and clientOrderId = :c", OrderEntity.class)
                     .setParameter("u", userId).setParameter("c", clientOrderId).getSingleResult();
-            return true;
         } catch (NoResultException e) {
-            return false;
+            return null;
         }
     }
 

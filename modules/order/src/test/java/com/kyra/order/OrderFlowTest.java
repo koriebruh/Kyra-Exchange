@@ -195,14 +195,19 @@ class OrderFlowTest {
     }
 
     @Test
-    void duplicateClientOrderIdRejected() {
+    void duplicateClientOrderIdIsIdempotent() {
         Fixture f = freshMarket();
         String buyer = funded(f.quote(), "100000");
         String clientId = "dup-" + Ids.newUlid();
-        orders.place(new PlaceOrder(buyer, f.pair(), OrderSide.BUY, TimeInForce.GTC, bd("40000"), bd("1"), clientId));
-        assertThrows(OrderRejectedException.class,
-                () -> orders.place(new PlaceOrder(buyer, f.pair(), OrderSide.BUY, TimeInForce.GTC,
-                        bd("40000"), bd("1"), clientId)));
+        OrderView first = orders.place(
+                new PlaceOrder(buyer, f.pair(), OrderSide.BUY, TimeInForce.GTC, bd("40000"), bd("1"), clientId));
+        // resubmitting the same client_order_id returns the original order, no second order
+        OrderView second = orders.place(
+                new PlaceOrder(buyer, f.pair(), OrderSide.BUY, TimeInForce.GTC, bd("40000"), bd("1"), clientId));
+        assertEquals(first.orderId(), second.orderId());
+        // only one order exists and only 40000 is held
+        assertEquals(1, orders.openOrders(buyer, f.pair()).size());
+        assertEquals(Money.of(f.quote(), bd("40000")), ledger.balanceOf(buyer, f.quote()).onHold());
     }
 
     private static String pad(int n) {
