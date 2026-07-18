@@ -3,6 +3,7 @@ package com.kyra.app.error;
 import com.kyra.account.api.InsufficientBalanceException;
 import com.kyra.identity.api.AuthenticationException;
 import com.kyra.identity.api.InvalidRegistrationException;
+import com.kyra.order.api.OrderRejectedException;
 
 import io.opentelemetry.api.trace.Span;
 import jakarta.ws.rs.WebApplicationException;
@@ -30,6 +31,8 @@ public class GlobalExceptionMapper implements ExceptionMapper<Throwable> {
                     build(Response.Status.UNAUTHORIZED, AuthenticationException.CODE, "Authentication failed.", traceId);
             case InsufficientBalanceException e ->
                     build(Response.Status.CONFLICT, InsufficientBalanceException.CODE, "Insufficient balance.", traceId);
+            case OrderRejectedException e ->
+                    build(Response.Status.BAD_REQUEST, e.code(), e.getMessage(), traceId);
             case InvalidRegistrationException e ->
                     build(Response.Status.BAD_REQUEST, InvalidRegistrationException.CODE, e.getMessage(), traceId);
             case IllegalArgumentException e ->
