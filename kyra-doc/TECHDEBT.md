@@ -65,12 +65,12 @@ Format: **Apa** · **Ditunda karena** · **Ref spec** · **Kerjakan saat**.
   kurs IDR.
 
 ### Fase 6 — Derivatives: refinement lanjutan
-- **Apa:** FONDASI SUDAH JADI (modules/derivatives): open/close/liquidation +
-  mark-price PnL + insurance backstop + funding rate. Sisa: position averaging /
-  partial close, ADL (auto-deleverage), mode margin cross vs isolated, feed mark/
-  index price + funding-premium ASLI (sekarang mock `MarkPriceProvider`).
-- **Ditunda karena:** feed harga eksternal butuh integrasi vendor; ADL & averaging
-  = refinement di atas fondasi yang sudah ada & teruji.
+- **Apa:** SUDAH JADI (modules/derivatives): open/close/liquidation + mark-price
+  PnL + insurance backstop + funding rate + position averaging + partial close.
+  Sisa: ADL (auto-deleverage), mode margin cross vs isolated, feed mark/index
+  price + funding-premium ASLI (sekarang mock `MarkPriceProvider`).
+- **Ditunda karena:** feed harga eksternal butuh integrasi vendor; ADL & mode
+  margin = refinement di atas fondasi yang sudah ada & teruji.
 - **Ref spec:** [modules/09-risk.md](modules/09-risk.md) Bagian B + README fase 6.
 - **Kerjakan saat:** ada feed harga + kebutuhan produk derivatives penuh.
 
