@@ -54,9 +54,16 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
   - wallet (08): BLOCKED — needs Fystack API integration.
   - compliance (10): BLOCKED — needs KYC provider.
   - notification (13): BLOCKED — needs email provider.
-  - NOT blocked (pure internal logic, buildable now): fee (11 maker/taker+tiers),
-    risk (09 limits/velocity), tax (15 PPh/PPN), admin (12 backoffice), liquidity
-    (14 MM bot). Build these before the blocked ones.
+  - fee (11) DONE — maker/taker rates frozen per order, deducted at settlement to
+    kyra:fee:*. Tiers/overrides planned.
+  - risk (09 spot) DONE — checkOrder (max notional + price band) wired into order
+    placement. Velocity limits (Valkey) planned next.
+  - NOT blocked, buildable next: MARKET orders (engine needs a quote-budget path
+    for market-buy; market-sell works on the existing by-qty path), velocity
+    limits (Valkey), multi-interval candles (aggregate 1m), admin backoffice (12),
+    liquidity MM bot (14). tax (15): PARTIALLY BLOCKED — withholding mechanism is
+    buildable but the IDR conversion needs a reference-rate source + consultant
+    confirmation of rates (see TECHDEBT scope).
 
 ## Layout
 ```
