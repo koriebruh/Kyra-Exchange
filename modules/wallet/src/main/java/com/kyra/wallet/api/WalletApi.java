@@ -52,4 +52,11 @@ public interface WalletApi {
 
     /** Fail a withdrawal (rejected/failed on-chain): release the held funds back to the user. */
     void failWithdrawal(String withdrawId, String reason);
+
+    /**
+     * Reconcile total user liabilities against custody for an asset
+     * (kyra-doc/modules/08, F4). A not-covered result is a critical alarm — never
+     * auto-fixed.
+     */
+    ReconciliationResult reconcile(AssetId asset);
 }

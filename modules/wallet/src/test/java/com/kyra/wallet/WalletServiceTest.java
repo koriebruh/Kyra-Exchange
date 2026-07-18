@@ -19,7 +19,9 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @QuarkusTest
@@ -157,6 +159,23 @@ class WalletServiceTest {
         wallet.failWithdrawal(wid, "provider rejected");
         assertEquals(Money.of("USDT", "1000"), ledger.balanceOf(u, USDT).available());
         assertEquals(Money.zero(USDT), ledger.balanceOf(u, USDT).onHold());
+    }
+
+    @Inject
+    com.kyra.wallet.domain.MockCustodyProvider mockCustody;
+
+    @Test
+    void reconciliationFlagsWhenCustodyBelowLiabilities() {
+        String u = verifiedUser("1000"); // creates 1000 USDT of user liabilities (at least)
+        BigDecimal liabilities = wallet.reconcile(USDT).ledgerLiabilities().amount();
+
+        // custody covers -> covered
+        mockCustody.setBalance(USDT, liabilities.add(new BigDecimal("1")));
+        assertTrue(wallet.reconcile(USDT).covered(), "custody >= liabilities is covered");
+
+        // custody short -> not covered (critical)
+        mockCustody.setBalance(USDT, liabilities.subtract(new BigDecimal("1")));
+        assertFalse(wallet.reconcile(USDT).covered(), "custody < liabilities is a breach");
     }
 
     @Transactional

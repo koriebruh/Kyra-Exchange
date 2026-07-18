@@ -45,11 +45,12 @@ public class WalletService implements WalletApi {
     private final FeeApi fees;
     private final CustodyProvider custody;
     private final ComplianceApi compliance;
+    private final com.kyra.account.api.ProofOfReservesApi reserves;
     private final BigDecimal autoApproveThreshold;
     private final BigDecimal dualApprovalThreshold;
 
     public WalletService(EntityManager em, AccountApi ledger, FeeApi fees, CustodyProvider custody,
-            ComplianceApi compliance,
+            ComplianceApi compliance, com.kyra.account.api.ProofOfReservesApi reserves,
             @ConfigProperty(name = "kyra.wallet.auto-approve-threshold", defaultValue = "1000")
             BigDecimal autoApproveThreshold,
             @ConfigProperty(name = "kyra.wallet.dual-approval-threshold", defaultValue = "1000000000")
@@ -59,8 +60,21 @@ public class WalletService implements WalletApi {
         this.fees = fees;
         this.custody = custody;
         this.compliance = compliance;
+        this.reserves = reserves;
         this.autoApproveThreshold = autoApproveThreshold;
         this.dualApprovalThreshold = dualApprovalThreshold;
+    }
+
+    @Override
+    public com.kyra.wallet.api.ReconciliationResult reconcile(AssetId asset) {
+        Money liabilities = reserves.snapshot(asset).totalLiabilities();
+        Money custodyBalance = custody.custodyBalance(asset);
+        boolean covered = custodyBalance.compareTo(liabilities) >= 0;
+        if (!covered) {
+            LOG.errorf("RECONCILIATION FAILED for %s: custody %s < liabilities %s — CRITICAL",
+                    asset, custodyBalance, liabilities);
+        }
+        return new com.kyra.wallet.api.ReconciliationResult(liabilities, custodyBalance, covered);
     }
 
     @Override
