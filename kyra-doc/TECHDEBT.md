@@ -34,13 +34,28 @@ Format: **Apa** · **Ditunda karena** · **Ref spec** · **Kerjakan saat**.
 
 ### Kirim email lewat provider ASLI (SMTP/SES/Postmark)
 - **Apa:** delivery email nyata ke inbox user. Framework notification + template +
-  verifikasi-email-on-register SUDAH jalan lewat `EmailSender` (mock:
-  RecordingEmailSender yang record+log).
-- **Ditunda karena:** butuh akun/kredensial provider email + setup SPF/DKIM/DMARC
-  di domain. Real impl = satu bean `EmailSender` baru dipilih config, tanpa ubah
-  logic notification.
-- **Ref spec:** [modules/13-notification.md](modules/13-notification.md) F2.
-- **Kerjakan saat:** ada akun provider email + domain terverifikasi.
+  verifikasi-email-on-register SUDAH jalan. Dua backend `EmailSender`:
+  `RecordingEmailSender` (mock, default test) + `SmtpEmailSender` (quarkus-mailer,
+  `kyra.email.provider=smtp`). Dev sudah kirim ke Mailpit (UI :8025).
+- **Ditunda karena:** butuh akun/kredensial relay email PROD + setup SPF/DKIM/DMARC
+  di domain. Real impl = set `QUARKUS_MAILER_*` env, tanpa ubah kode.
+- **Ref spec:** [modules/13-notification.md](modules/13-notification.md) F2 +
+  [DEV-INFRA.md](DEV-INFRA.md).
+- **Kerjakan saat:** ada akun relay email prod + domain terverifikasi.
+
+### Integrasi vendor eksternal: custody (Fystack), KYC, AML screening, price feed
+- **Apa:** implementasi ASLI dari provider yang sekarang mock: `MockCustodyProvider`
+  (Fystack), `MockKycProvider`, `MockAddressScreener`, `Mock*PriceProvider`.
+- **Ditunda karena:** ini **API vendor hosted** — TIDAK ada image self-host, jadi
+  TIDAK bisa ditaruh di docker-compose (beda dari Postgres/Valkey/Mailpit). Butuh
+  kredensial + sandbox endpoint vendor + **verifikasi kontrak API terkini** (khusus
+  Fystack: cek dokumentasi mereka sebelum implement — CLAUDE.md). Nebak bentuk API
+  buat sistem uang real = haram. Real impl = satu bean per provider (mis.
+  `HttpCustodyProvider`) dipilih config, pola sama seperti email.
+- **Ref spec:** [modules/08-wallet.md](modules/08-wallet.md),
+  [modules/10-compliance.md](modules/10-compliance.md),
+  [modules/09-risk.md](modules/09-risk.md) + [DEV-INFRA.md](DEV-INFRA.md).
+- **Kerjakan saat:** kontrak/kredensial vendor tersedia (custody dulu — blocker rilis).
 
 ### Wiring notification ke producer lain (wallet, login-baru, password-change)
 - **Apa:** deposit/withdraw/login-baru/password-change kirim notifikasi. Register

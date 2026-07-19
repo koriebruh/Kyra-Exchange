@@ -28,6 +28,18 @@ services:
       timeout: 3s
       retries: 10
 
+  # Local SMTP catcher. The app (dev / app profile) delivers real emails here so
+  # verification / withdrawal mails are visible in a web inbox — nothing leaves
+  # the machine. SMTP on :1025, inbox UI on http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # web inbox
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+
   # Packaged app. Build jar first: ./mvnw -DskipTests package
   # Run: docker compose -f docker-compose.dev.yml --profile app up --build
   app:
@@ -42,12 +54,22 @@ services:
       QUARKUS_DATASOURCE_USERNAME: kyra
       QUARKUS_DATASOURCE_PASSWORD: kyra
       QUARKUS_REDIS_HOSTS: redis://valkey:6379
+      # Email -> Mailpit (read at http://localhost:8025)
+      QUARKUS_MAILER_MOCK: "false"
+      QUARKUS_MAILER_HOST: mailpit
+      QUARKUS_MAILER_PORT: "1025"
+      QUARKUS_MAILER_FROM: no-reply@kyra.exchange
+      # Tracing off by default so `--profile app` runs standalone. For traces:
+      # also start `--profile obs`, then set QUARKUS_OTEL_SDK_DISABLED=false.
+      QUARKUS_OTEL_SDK_DISABLED: "true"
       QUARKUS_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://lgtm:4317
     depends_on:
       postgres:
         condition: service_healthy
       valkey:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
   # Grafana + Loki + Tempo + Prometheus + OTLP in one container (dev only).
   # Prod uses the real stack with Alloy agents (kyra-doc/modules/17).

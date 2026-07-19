@@ -2,6 +2,7 @@ package com.kyra.notification.domain;
 
 import com.kyra.notification.api.EmailSender;
 
+import io.quarkus.arc.DefaultBean;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
 
@@ -9,12 +10,15 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Dev/test email backend (kyra-doc/modules/13). Records what would be sent and
- * logs it — no external provider. The real SES/Postmark/Resend implementation
- * replaces this by providing another {@link EmailSender} bean; notification
- * logic does not change. Recipient is masked in logs (no PII in logs).
+ * Default email backend (kyra-doc/modules/13). Records what would be sent and
+ * logs it — no external provider. It is a {@link DefaultBean}, so it backs
+ * tests and any run where {@code kyra.email.provider} is not {@code smtp};
+ * setting that property activates {@link SmtpEmailSender} instead, which then
+ * wins over this default. Notification logic never changes. Recipient is masked
+ * in logs (no PII in logs).
  */
 @ApplicationScoped
+@DefaultBean
 public class RecordingEmailSender implements EmailSender {
 
     private static final Logger LOG = Logger.getLogger(RecordingEmailSender.class);
