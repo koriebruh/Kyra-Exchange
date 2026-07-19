@@ -71,6 +71,28 @@ services:
       mailpit:
         condition: service_started
 
+  # Local EVM chain for custody dev/test (web3j provider). Deterministic test
+  # accounts, instant blocks, fake money — no vendor, no login. JSON-RPC on :8545.
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    entrypoint: ["anvil", "--host", "0.0.0.0", "--chain-id", "31337"]
+    ports:
+      - "8545:8545"
+
+  # OpenBao (open-source Vault fork) — secret store for the wallet seed. Dev mode:
+  # in-memory, auto-unsealed, root token "root". DEV ONLY — prod needs a real
+  # storage backend + unseal (see kyra-doc/DEV-INFRA.md / TECHDEBT).
+  openbao:
+    image: openbao/openbao:latest
+    cap_add:
+      - IPC_LOCK
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: root
+      BAO_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    command: server -dev
+    ports:
+      - "8200:8200"
+
   # Grafana + Loki + Tempo + Prometheus + OTLP in one container (dev only).
   # Prod uses the real stack with Alloy agents (kyra-doc/modules/17).
   lgtm:

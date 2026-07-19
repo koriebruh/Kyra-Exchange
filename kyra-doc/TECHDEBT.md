@@ -67,6 +67,25 @@ Format: **Apa** · **Ditunda karena** · **Ref spec** · **Kerjakan saat**.
 - **Ref spec:** [modules/08-wallet.md](modules/08-wallet.md) + [DEV-INFRA.md](DEV-INFRA.md).
 - **Kerjakan saat:** dapat password registry → stack jalan → validasi sisa end-to-end.
 
+### Self-custody web3j + OpenBao — scaffold JALAN, lengkapin buat prod
+- **Sudah (teruji end-to-end lawan Anvil + OpenBao asli):** `Web3jVaultCustodyProvider`
+  — HD wallet (`HdWallet`, diuji lawan akun Anvil standar), deposit address per-user
+  (index stabil, `wallet.hd_index`, V802), withdrawal native EVM (sign secp256k1 +
+  broadcast, idempotent by withdrawId `wallet.web3j_withdrawal`), balance on-chain.
+  Seed dari OpenBao (`OpenBaoSeedStore`, KV v2). Gated `kyra.custody.provider=web3j`
+  (mock default). Anvil + OpenBao di `docker-compose.dev.yml`.
+- **Sisa buat produksi:**
+  1. **ERC-20 (USDT)**: sekarang cuma coin native. Token butuh contract address per
+     aset + encode `transfer(to,amount)` + `balanceOf`. Follow-up terdekat.
+  2. **Deteksi deposit**: poller/indexer saldo masuk per address (background) — belum.
+  3. **Atomicity broadcast↔record**: crash antara broadcast & simpan txHash bisa
+     double-spend saat retry. Butuh pola outbox/2-phase.
+  4. **Keamanan kunci prod**: hot/cold split, OpenBao mode prod (bukan dev in-memory,
+     unseal/HSM auto-unseal, backup seed). Self-custody = kunci di operator.
+  5. **Sweep** deposit→hot wallet + rekonsiliasi total (sum semua address).
+- **Ref:** [modules/08-wallet.md](modules/08-wallet.md) + [DEV-INFRA.md](DEV-INFRA.md).
+- **Kerjakan saat:** jadi custody pilihan → lengkapin ERC-20 + deteksi deposit dulu.
+
 ### Integrasi vendor lain: KYC, AML screening, price feed
 - **Apa:** impl asli `MockKycProvider`, `MockAddressScreener`, `Mock*PriceProvider`.
 - **Ditunda karena:** vendor belum dipilih; ini API hosted, butuh kredensial +
