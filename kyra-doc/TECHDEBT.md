@@ -43,19 +43,30 @@ Format: **Apa** · **Ditunda karena** · **Ref spec** · **Kerjakan saat**.
   [DEV-INFRA.md](DEV-INFRA.md).
 - **Kerjakan saat:** ada akun relay email prod + domain terverifikasi.
 
-### Integrasi vendor eksternal: custody (Fystack), KYC, AML screening, price feed
-- **Apa:** implementasi ASLI dari provider yang sekarang mock: `MockCustodyProvider`
-  (Fystack), `MockKycProvider`, `MockAddressScreener`, `Mock*PriceProvider`.
-- **Ditunda karena:** ini **API vendor hosted** — TIDAK ada image self-host, jadi
-  TIDAK bisa ditaruh di docker-compose (beda dari Postgres/Valkey/Mailpit). Butuh
-  kredensial + sandbox endpoint vendor + **verifikasi kontrak API terkini** (khusus
-  Fystack: cek dokumentasi mereka sebelum implement — CLAUDE.md). Nebak bentuk API
-  buat sistem uang real = haram. Real impl = satu bean per provider (mis.
-  `HttpCustodyProvider`) dipilih config, pola sama seperti email.
-- **Ref spec:** [modules/08-wallet.md](modules/08-wallet.md),
-  [modules/10-compliance.md](modules/10-compliance.md),
+### Integrasi custody Fystack (ASLI) — app BELUM connect
+- **Apa:** implementasi asli `CustodyProvider` → `HttpCustodyProvider` lawan Fystack
+  **Apex REST API** (`http://localhost:8150` kalau self-host). Sekarang cuma
+  `MockCustodyProvider`; **nol kode Fystack**. deposit address, submit withdrawal
+  (idempotent by withdrawId), custody balance (reconciliation).
+- **Fakta:** Fystack **open-core, BISA self-host** (Docker, `./fystack-ignite.sh`,
+  ~14 service: Apex API :8150, UI :8015, 3× MPCIUM :8080–8082, Postgres :5433,
+  Redis :6380, Mongo :27018, NATS :4223, Consul :8501). Butuh **CoinMarketCap API
+  key** + ~4 vCPU/4 GB RAM. Repo: github.com/fystack/fystack-selfhost-scripts.
+- **Ditunda karena:** (1) stack berat + butuh CMC key + config di-generate ignite →
+  bukan dijejalkan ke docker-compose.dev.yml, dijalankan opt-in; (2) belum ambil
+  **kontrak Apex API pasti** (endpoint wallet/address/transfer/balance + auth) —
+  wajib verifikasi dari docs.fystack.io sebelum koding (uang real, gak nebak);
+  (3) port MPCIUM 8080 bentrok app Kyra → app pindah port. Blocker rilis produksi.
+- **Ref spec:** [modules/08-wallet.md](modules/08-wallet.md) + [DEV-INFRA.md](DEV-INFRA.md).
+- **Kerjakan saat:** kontrak Apex API diverifikasi + Fystack stack jalan (dev/sandbox).
+
+### Integrasi vendor lain: KYC, AML screening, price feed
+- **Apa:** impl asli `MockKycProvider`, `MockAddressScreener`, `Mock*PriceProvider`.
+- **Ditunda karena:** vendor belum dipilih; ini API hosted, butuh kredensial +
+  verifikasi kontrak. Real impl = satu bean per provider dipilih config, pola email.
+- **Ref spec:** [modules/10-compliance.md](modules/10-compliance.md),
   [modules/09-risk.md](modules/09-risk.md) + [DEV-INFRA.md](DEV-INFRA.md).
-- **Kerjakan saat:** kontrak/kredensial vendor tersedia (custody dulu — blocker rilis).
+- **Kerjakan saat:** vendor dipilih + kredensial tersedia.
 
 ### Wiring notification ke producer lain (wallet, login-baru, password-change)
 - **Apa:** deposit/withdraw/login-baru/password-change kirim notifikasi. Register
