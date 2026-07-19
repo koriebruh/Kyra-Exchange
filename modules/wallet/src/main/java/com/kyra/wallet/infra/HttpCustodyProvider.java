@@ -23,21 +23,27 @@ import java.time.Instant;
  * otherwise {@link com.kyra.wallet.domain.MockCustodyProvider} (a
  * {@code @DefaultBean}) is used. Requests are HMAC-signed by {@link FystackSigner}.
  *
+ * <p>Deposits are attributed per user: each user gets their own Fystack wallet
+ * ({@code wallet_purpose=user}), created on first use and persisted via
+ * {@link FystackWalletStore}; deposit addresses are minted per asset under it.
+ * Withdrawals are paid from the configured hot wallet
+ * ({@code kyra.custody.fystack.wallet-id}).
+ *
  * <p><b>Not production-complete — verify against a live Apex instance before
  * enabling (kyra-doc/TECHDEBT.md):</b>
  * <ul>
- *   <li>{@link #depositAddress} returns the configured custody wallet's address
- *       for the asset. Per-user deposit attribution needs a wallet-per-user model
- *       (Fystack {@code wallet_purpose=user}) with a persisted userId→wallet_id
- *       map — a product decision to finalise against the running stack.</li>
  *   <li>The exact signed-{@code PATH} convention and the idempotency-key format
  *       (Fystack documents "a unique UUID"; we pass the withdrawal ULID) must be
  *       confirmed live.</li>
+ *   <li>Wallet creation then mapping-persist is not atomic with the caller's tx:
+ *       a rollback after a successful Fystack create leaves an orphan wallet
+ *       (next call creates another). Acceptable for scaffold; revisit for prod.</li>
  *   <li>{@link #custodyBalance} has no per-asset Apex endpoint yet, so
  *       reconciliation against real custody is unresolved.</li>
  * </ul>
- * The request signing, endpoint shaping, idempotency header and response parsing
- * are unit-tested against a stub server; the items above are the live-only gaps.
+ * The request signing, endpoint shaping, per-user wallet create/reuse, idempotency
+ * header and response parsing are unit-tested against a stub server; the items
+ * above are the live-only gaps.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "kyra.custody.provider", stringValue = "fystack", enableIfMissing = false)
@@ -47,17 +53,20 @@ public class HttpCustodyProvider implements CustodyProvider {
 
     private final FystackConfig config;
     private final ObjectMapper mapper;
+    private final FystackWalletStore walletStore;
     private final HttpClient http;
 
-    public HttpCustodyProvider(FystackConfig config, ObjectMapper mapper) {
+    public HttpCustodyProvider(FystackConfig config, ObjectMapper mapper, FystackWalletStore walletStore) {
         this.config = config;
         this.mapper = mapper;
+        this.walletStore = walletStore;
         this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     }
 
     @Override
     public String depositAddress(String userId, AssetId asset) {
-        String path = "/wallets/" + walletId() + "/deposit-address"
+        String userWallet = walletStore.walletIdFor(userId).orElseGet(() -> createUserWallet(userId));
+        String path = "/wallets/" + userWallet + "/deposit-address"
                 + "?asset_id=" + assetId(asset) + "&address_type=" + config.addressType();
         JsonNode data = send("GET", path, null).path("data");
         String address = data.path("address").asText(null);
@@ -67,9 +76,30 @@ public class HttpCustodyProvider implements CustodyProvider {
         return address;
     }
 
+    /** Create a per-user custody wallet on Fystack and remember its id. */
+    private String createUserWallet(String userId) {
+        String body;
+        try {
+            body = mapper.writeValueAsString(mapper.createObjectNode()
+                    .put("name", "kyra-user-" + userId)
+                    .put("wallet_type", "mpc")
+                    .put("wallet_purpose", "user"));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("failed to build Fystack wallet body", e);
+        }
+        JsonNode data = send("POST", "/wallets", body).path("data");
+        String walletId = data.path("wallet_id").asText(null);
+        if (walletId == null || walletId.isBlank()) {
+            throw new IllegalStateException("Fystack returned no wallet_id for user " + userId);
+        }
+        walletStore.save(userId, walletId);
+        LOG.infof("fystack user wallet created: userId=%s", userId);
+        return walletId;
+    }
+
     @Override
     public String submitWithdrawal(String withdrawId, AssetId asset, String toAddress, Money amount) {
-        String path = "/wallets/" + walletId() + "/request-withdrawal";
+        String path = "/wallets/" + hotWalletId() + "/request-withdrawal";
         String body;
         try {
             body = mapper.writeValueAsString(mapper.createObjectNode()
@@ -142,7 +172,8 @@ public class HttpCustodyProvider implements CustodyProvider {
         }
     }
 
-    private String walletId() {
+    /** The exchange's hot/withdrawal wallet (funds are paid out from here). */
+    private String hotWalletId() {
         return config.walletId()
                 .orElseThrow(() -> new IllegalStateException("kyra.custody.fystack.wallet-id not configured"));
     }

@@ -45,25 +45,27 @@ Format: **Apa** · **Ditunda karena** · **Ref spec** · **Kerjakan saat**.
 
 ### Integrasi custody Fystack (ASLI) — scaffold ADA, belum production-wired
 - **Sudah:** `HttpCustodyProvider` (kyra-wallet/infra) — client Apex REST asli:
-  HMAC sign (`FystackSigner`, diuji lawan vektor OpenSSL), `GET deposit-address`,
-  `POST request-withdrawal` + header `X-Idempotency-Key`, parse response, error
+  HMAC sign (`FystackSigner`, diuji lawan vektor OpenSSL), **deposit per-user**
+  (create wallet `wallet_purpose=user` on first use + persist `userId→wallet_id`
+  di `wallet.fystack_wallet`, V801; address di-mint per aset), withdrawal dari hot
+  wallet (`POST request-withdrawal` + `X-Idempotency-Key`), parse response, error
   handling. Config `kyra.custody.fystack.*`. Gated `kyra.custody.provider=fystack`
-  (mock = `@DefaultBean`, default). Diuji lawan HTTP stub (endpoint/header/body).
-- **Sisa (butuh stack Fystack JALAN buat validasi, uang real — gak diklaim done):**
-  1. **Atribusi deposit per-user:** `depositAddress` sekarang balikin address wallet
-     custody terkonfigurasi. Exchange butuh model wallet-per-user (`wallet_purpose=
-     user`) + peta `userId→wallet_id` persistent. 2. **Konvensi PATH HMAC** (apakah
-     termasuk prefix `/api/v1` + query) — dikonfirmasi lawan Apex hidup. 3. **Format
-     idempotency-key** (Fystack: "unique UUID"; Kyra kirim ULID) — konfirmasi.
-     4. **Custody balance/rekonsiliasi:** Apex belum ada endpoint balance per-aset →
-     `custodyBalance` throw UnsupportedOperationException. 5. **Webhook approval**
-     withdrawal (PENDING_APPROVAL → executed).
-- **Cara jalanin + connect:** [fystack-selfhost.md](fystack-selfhost.md). Fystack
-  self-host = Docker `./fystack-ignite.sh` (~14 service, butuh CMC key + ~4GB RAM,
-  port MPCIUM 8080 bentrok app → app pindah port).
+  (mock = `@DefaultBean`, default). Diuji lawan HTTP stub (create/reuse wallet,
+  endpoint/header/idempotency/body/error).
+- **BLOCKER jalanin stack:** images Fystack di **registry PRIVAT** — `docker login
+  -u fystacklabs` butuh password dari **Telegram community Fystack**. Tanpa itu
+  stack gak bisa di-pull/jalan. (CMC key + Apex API key nyusul, bukan blocker utama.)
+- **Sisa (butuh stack JALAN buat validasi, uang real — gak diklaim done):**
+  1. **Konvensi PATH HMAC** (apakah termasuk prefix `/api/v1` + query) — konfirmasi
+     lawan Apex hidup. 2. **Format idempotency-key** (Fystack: "unique UUID"; Kyra
+     kirim ULID). 3. **Sweep deposit→hot wallet** + **rekonsiliasi**: Apex belum ada
+     endpoint balance per-aset → `custodyBalance` throw UnsupportedOperationException.
+     4. **Webhook approval** withdrawal (PENDING_APPROVAL → executed). 5. **Atomicity:**
+     create-wallet + persist-mapping belum atomik dengan tx caller (orphan wallet
+     kalau rollback).
+- **Cara jalanin + connect:** [fystack-selfhost.md](fystack-selfhost.md).
 - **Ref spec:** [modules/08-wallet.md](modules/08-wallet.md) + [DEV-INFRA.md](DEV-INFRA.md).
-- **Kerjakan saat:** Fystack stack jalan (dev/sandbox) + kredensial API tersedia →
-  validasi 5 gap di atas end-to-end.
+- **Kerjakan saat:** dapat password registry → stack jalan → validasi sisa end-to-end.
 
 ### Integrasi vendor lain: KYC, AML screening, price feed
 - **Apa:** impl asli `MockKycProvider`, `MockAddressScreener`, `Mock*PriceProvider`.

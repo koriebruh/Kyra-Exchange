@@ -13,11 +13,23 @@ unit-tested) but is **not production-wired** — see the gaps at the bottom.
 ```bash
 git clone https://github.com/fystack/fystack-selfhost-scripts
 cd fystack-selfhost-scripts
-# Put your CoinMarketCap key in Fystack's config (its price provider needs it).
+
+# (!) BLOCKER: the images (fystacklabs/apex, mpcium, ...) are in a PRIVATE
+# registry. You must log in with a password obtained from the Fystack Telegram
+# community — there is no way around this without it.
+docker login -u fystacklabs        # password from https://t.me/ (Fystack community)
+
+# Config: only the CoinMarketCap key is mandatory (Fystack's price provider).
 # Do NOT put this key in the Kyra repo — it belongs to Fystack's config.
-#   config.yaml -> price_providers -> coinmarketcap api key
+cp ./dev/config.yaml.template ./dev/config.yaml            # set price_providers.coinmarketcap.api_key
+cp ./dev/config.rescanner.yaml.template ./dev/config.rescanner.yaml
+cp ./dev/config.indexer.yaml.template ./dev/config.indexer.yaml
+
 ./fystack-ignite.sh        # generates MPCIUM configs + starts all services
 ```
+
+> The Docker-registry password is the real gate to running the stack — not the
+> CoinMarketCap key and not the Apex API key. Get it from Fystack first.
 
 Services after it is up:
 
@@ -58,13 +70,15 @@ When unset, Kyra uses `MockCustodyProvider` (default, all tests).
 
 ## 4. Gaps to close before trusting it with real money (TECHDEBT)
 
-The Apex client's signing, endpoints, idempotency header and response parsing are
-unit-tested, but these need validation against the **running** stack:
+The Apex client's signing, endpoints, per-user wallet create/reuse, idempotency
+header and response parsing are unit-tested, but these need validation against the
+**running** stack:
 
-- **Per-user deposit attribution.** `depositAddress` currently returns the
-  configured custody wallet's address. An exchange needs a wallet-per-user model
-  (`wallet_purpose=user`) with a persisted `userId → wallet_id` map so deposits
-  are attributable. Finalise this against live Fystack.
+- **Per-user deposit attribution — done in code, validate live.** `depositAddress`
+  creates a per-user Fystack wallet (`wallet_purpose=user`) on first use, persists
+  `userId → wallet_id` (`wallet.fystack_wallet`), and mints addresses under it;
+  withdrawals pay from the configured hot wallet. Confirm the wallet-create and
+  address responses against a live Apex, and decide the deposit→hot-wallet sweep.
 - **HMAC PATH convention.** Confirm whether the signed `path` includes the
   `/api/v1` prefix and/or the query string (docs are ambiguous; the client signs
   path+query).
