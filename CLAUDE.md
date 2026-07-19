@@ -138,6 +138,15 @@ docker compose -f docker-compose.dev.yml up                        # Postgres+Va
 docker compose -f docker-compose.dev.yml --profile obs up          # + Grafana/OTLP :3000
 docker compose -f docker-compose.dev.yml --profile app up --build  # packaged app (package first)
 ```
+- **Native executable** (GraalVM native-image, no JVM at runtime):
+  ```bash
+  export JAVA_HOME=/usr/lib/jvm/mandrel-java25-25.0.3.0-Final   # Mandrel has native-image; Quarkus 3.37 accepts it
+  ./mvnw -pl kyra-app -am verify -Dnative -Dquarkus.native.native-image-xmx=4g   # cap xmx on the 7.6G box
+  # → kyra-app/target/kyra-app-*-runner (ELF, ~110MB, boots in ~0.4s). AppSmokeIT runs against the binary.
+  ```
+  ULID lib (f4b6a3) is forced `--initialize-at-run-time` in application.properties — its static
+  SecureRandom must not be frozen into the image heap. Container build (no local Mandrel):
+  add `-Dquarkus.native.container-build=true` (jdk-21 builder image, needs Docker).
 - Quarkus CLI: via jbang (`~/.jbang/bin/quarkus`, v3.37.3). The `/usr/local/bin/quarkus` symlink is BROKEN — do not use it.
 - Health `/q/health` · metrics `/q/metrics`.
 
