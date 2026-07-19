@@ -4,6 +4,7 @@ import com.kyra.common.money.AssetId;
 import com.kyra.common.money.Money;
 import com.kyra.wallet.api.CustodyProvider;
 
+import io.quarkus.arc.DefaultBean;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.math.BigDecimal;
@@ -11,12 +12,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Dev/test custody backend (kyra-doc/modules/08). Deterministic addresses and
- * fake transaction refs — no network. The real Fystack / licensed-custodian
- * implementation replaces this by providing another {@link CustodyProvider}
- * bean selected by configuration; the wallet's logic does not change.
+ * Default custody backend (kyra-doc/modules/08). Deterministic addresses and
+ * fake transaction refs — no network. As a {@link DefaultBean} it backs tests
+ * and any run where {@code kyra.custody.provider} is not {@code fystack};
+ * setting that property activates {@link com.kyra.wallet.infra.HttpCustodyProvider}
+ * (real Fystack Apex API) instead. The wallet's logic does not change.
  */
 @ApplicationScoped
+@DefaultBean
 public class MockCustodyProvider implements CustodyProvider {
 
     @Override
