@@ -37,7 +37,7 @@ REST intake → validasi market → risk check → hold ledger (DB span)
   → WS publish
 ```
 - **Matching hot path:** JANGAN full-trace tiap order di dalam engine loop (overhead). Pola: span per command dengan sampling; event log matching sudah jadi audit trail lengkapnya. Batch settlement = satu span dengan `span links` ke trace order asal (fan-in pattern OTel).
-- Async boundary (queue, outbox, webhook Fystack) = **span link**, bukan parent-child — supaya durasi span tidak bohong.
+- Async boundary (queue, outbox, poll deposit detection) = **span link**, bukan parent-child — supaya durasi span tidak bohong.
 
 ### Sampling
 - Fase awal: 100% (traffic kecil, data emas buat debugging).
@@ -113,7 +113,7 @@ Field wajib setiap baris:
 | Uptime dari LUAR network (blackbox HTTP/TCP probe API+WS) | blackbox_exporter + probe eksternal pihak ketiga (UptimeRobot dsb — kalau VPS mati semua, tetap ada yang teriak) |
 | TLS cert expiry | blackbox (sudah di alert 16) |
 | Backup job sukses/gagal | pushgateway / textfile collector |
-| Fystack API health (latency, error rate dari sisi kita) | metric klien custom |
+| Custody node/RPC health (latency, error rate dari sisi kita) | metric klien custom |
 
 Prometheus + Alertmanager + Grafana + Loki + Tempo di VPS-3 (docker compose); Alloy = agent di TIAP VPS (kumpul lokal → kirim ke VPS-3). Grafana di belakang VPN/IP allowlist — dashboard exchange = intel buat penyerang.
 

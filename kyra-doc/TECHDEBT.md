@@ -43,31 +43,9 @@ Format: **Apa** · **Ditunda karena** · **Ref spec** · **Kerjakan saat**.
   [DEV-INFRA.md](DEV-INFRA.md).
 - **Kerjakan saat:** ada akun relay email prod + domain terverifikasi.
 
-### Integrasi custody Fystack (ASLI) — scaffold ADA, belum production-wired
-- **Sudah:** `HttpCustodyProvider` (kyra-wallet/infra) — client Apex REST asli:
-  HMAC sign (`FystackSigner`, diuji lawan vektor OpenSSL), **deposit per-user**
-  (create wallet `wallet_purpose=user` on first use + persist `userId→wallet_id`
-  di `wallet.fystack_wallet`, V801; address di-mint per aset), withdrawal dari hot
-  wallet (`POST request-withdrawal` + `X-Idempotency-Key`), parse response, error
-  handling. Config `kyra.custody.fystack.*`. Gated `kyra.custody.provider=fystack`
-  (mock = `@DefaultBean`, default). Diuji lawan HTTP stub (create/reuse wallet,
-  endpoint/header/idempotency/body/error).
-- **BLOCKER jalanin stack:** images Fystack di **registry PRIVAT** — `docker login
-  -u fystacklabs` butuh password dari **Telegram community Fystack**. Tanpa itu
-  stack gak bisa di-pull/jalan. (CMC key + Apex API key nyusul, bukan blocker utama.)
-- **Sisa (butuh stack JALAN buat validasi, uang real — gak diklaim done):**
-  1. **Konvensi PATH HMAC** (apakah termasuk prefix `/api/v1` + query) — konfirmasi
-     lawan Apex hidup. 2. **Format idempotency-key** (Fystack: "unique UUID"; Kyra
-     kirim ULID). 3. **Sweep deposit→hot wallet** + **rekonsiliasi**: Apex belum ada
-     endpoint balance per-aset → `custodyBalance` throw UnsupportedOperationException.
-     4. **Webhook approval** withdrawal (PENDING_APPROVAL → executed). 5. **Atomicity:**
-     create-wallet + persist-mapping belum atomik dengan tx caller (orphan wallet
-     kalau rollback).
-- **Cara jalanin + connect:** [fystack-selfhost.md](fystack-selfhost.md).
-- **Ref spec:** [modules/08-wallet.md](modules/08-wallet.md) + [DEV-INFRA.md](DEV-INFRA.md).
-- **Kerjakan saat:** dapat password registry → stack jalan → validasi sisa end-to-end.
-
-### Self-custody web3j + OpenBao — scaffold JALAN, lengkapin buat prod
+### Self-custody web3j + OpenBao — custody TERPILIH, lengkapin buat prod
+> Ini custody Kyra sekarang. MPC vendor (Fireblocks/BitGo) bisa ditambah sebagai
+> `CustodyProvider` bean lain kelak — interface sama, tanpa ubah logic.
 - **Sudah (teruji end-to-end lawan Anvil + OpenBao asli):** `Web3jVaultCustodyProvider`
   — HD wallet (`HdWallet`, diuji lawan akun Anvil standar), deposit address per-user
   (index stabil, `wallet.hd_index`, V802), withdrawal native EVM (sign secp256k1 +
@@ -84,7 +62,7 @@ Format: **Apa** · **Ditunda karena** · **Ref spec** · **Kerjakan saat**.
      unseal/HSM auto-unseal, backup seed). Self-custody = kunci di operator.
   5. **Sweep** deposit→hot wallet + rekonsiliasi total (sum semua address).
 - **Ref:** [modules/08-wallet.md](modules/08-wallet.md) + [DEV-INFRA.md](DEV-INFRA.md).
-- **Kerjakan saat:** jadi custody pilihan → lengkapin ERC-20 + deteksi deposit dulu.
+- **Kerjakan saat:** sebelum go-live custody nyata → ERC-20 + deteksi deposit dulu.
 
 ### Integrasi vendor lain: KYC, AML screening, price feed
 - **Apa:** impl asli `MockKycProvider`, `MockAddressScreener`, `Mock*PriceProvider`.

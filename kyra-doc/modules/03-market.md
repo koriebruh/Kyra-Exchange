@@ -17,7 +17,7 @@ Per aset:
 - `symbol` (BTC), `name`, `scale` (jumlah desimal: BTC=8, USDT=6)
 - `status`: `ACTIVE` / `DEPOSIT_ONLY` / `WITHDRAW_ONLY` / `FROZEN`
   (contoh: chain sedang upgrade → `WITHDRAW_ONLY` supaya deposit tidak nyangkut)
-- Mapping ke aset di Fystack (chain, contract address untuk token, confirmations minimum) — dipakai modul wallet
+- Mapping aset ke chain (contract address untuk token ERC-20, confirmations minimum) — dipakai modul wallet (custody)
 
 ### F2. Pair registry
 Per pair (base-quote, contoh BTC-USDT):
@@ -40,7 +40,7 @@ Crypto 24/7, tapi siapkan flag `scheduled_maintenance` untuk window maintenance 
 ## Data Model (schema `market`)
 
 ```sql
-assets(symbol PK, name, scale SMALLINT, status, fystack_ref JSONB,
+assets(symbol PK, name, scale SMALLINT, status, custody_ref JSONB,
        min_confirmations INT, created_at)
 pairs(symbol PK,            -- "BTC-USDT"
       base_asset FK, quote_asset FK,

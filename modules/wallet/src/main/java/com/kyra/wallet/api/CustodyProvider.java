@@ -5,9 +5,10 @@ import com.kyra.common.money.Money;
 
 /**
  * Abstraction over the custody backend (kyra-doc/modules/08). The real
- * implementation integrates Fystack (or a licensed local custodian); a mock
- * implementation backs dev/test. Swapping providers is a new implementation of
- * this interface, never a change to the wallet's business logic.
+ * implementation is web3j self-custody on an EVM chain (seed in OpenBao); a mock
+ * implementation backs dev/test, and an MPC vendor (Fireblocks/BitGo/…) can be
+ * added later. Swapping providers is a new implementation of this interface,
+ * never a change to the wallet's business logic.
  */
 public interface CustodyProvider {
 

@@ -13,7 +13,7 @@
 | Target | Produksi real-money, cikal bakal perusahaan | Bukan proyek belajar — semua desain harus auditable & aman |
 | Produk | Spot (launch) → Derivatives/perpetual (fase lanjut) | Spot = fondasi; arsitektur sudah menyiapkan slot derivatives |
 | Fiat | Crypto-only dulu, pair berbasis stablecoin (USDT/USDC) | Tanpa bank integration → launch lebih cepat, regulasi lebih ringan |
-| Custody | **Fystack** (MPC wallet-as-a-service) via API | Tidak pegang private key sendiri → risiko & effort turun drastis |
+| Custody | **web3j self-custody** (HD wallet EVM) + seed di **OpenBao** | Gratis, tanpa vendor; di balik interface `CustodyProvider` → bisa swap ke MPC vendor (Fireblocks/BitGo) kelak |
 | Backbone | **PostgreSQL-sentris** (opsi A) | Postgres + Valkey, event in-process + outbox table. Broker (Redpanda) menyusul saat perlu |
 | Hosting | VPS self-managed, Docker Compose | Murah, kontrol penuh, cukup untuk fase awal |
 | Bahasa/stack | Java 21, Quarkus, Maven multi-module | Native image (Mandrel) opsional untuk startup cepat |
@@ -25,7 +25,7 @@
 3. **Modul terisolasi.** Komunikasi antar modul hanya lewat interface `api` + domain event. Dilarang query tabel modul lain.
 4. **Semua endpoint yang menyentuh dana = idempotent** (idempotency key wajib).
 5. **Audit log immutable** untuk semua aksi sensitif (login, withdraw, perubahan config, aksi admin).
-6. **Rekonsiliasi harian** ledger internal vs saldo Fystack. Selisih = alarm + investigasi manual, bukan auto-fix.
+6. **Rekonsiliasi harian** ledger internal vs saldo custody on-chain. Selisih = alarm + investigasi manual, bukan auto-fix.
 7. **Abstraksi event publisher dari hari 1** — pindah dari outbox Postgres ke broker = ganti 1 implementasi, bukan refactor.
 8. **Valkey = cache disposable only.** Dilarang menyimpan data yang tidak bisa direkonstruksi dari Postgres (18 §A1).
 9. **Ownership check (anti-IDOR) di setiap endpoint ber-resource-ID** + respons 404 untuk resource orang lain; error API tidak pernah bocorkan internal (18 §B1-B2).
@@ -50,7 +50,7 @@
                         └───────┬──────────────┬───────────────────┘
                                 │              │
                      ┌──────────▼───┐   ┌──────▼──────┐        ┌─────────────┐
-                     │ PostgreSQL 16│   │ Valkey      │        │ Fystack API │
+                     │ PostgreSQL 16│   │ Valkey      │        │ EVM node+Bao │
                      │ data+ledger+ │   │ cache, rate │        │ (custody)   │
                      │ event outbox │   │ limit, sess │        └─────────────┘
                      └──────────────┘   └─────────────┘
@@ -84,7 +84,7 @@ Tiap modul punya sub-package: `api/` (interface + DTO yang boleh dipakai modul l
 | 05 | Matching | [modules/05-matching.md](modules/05-matching.md) | Order book in-memory, matching engine |
 | 06 | Settlement | [modules/06-settlement.md](modules/06-settlement.md) | Trade → mutasi ledger atomik |
 | 07 | Market Data | [modules/07-marketdata.md](modules/07-marketdata.md) | Candle, ticker, depth, WS stream |
-| 08 | Wallet | [modules/08-wallet.md](modules/08-wallet.md) | Fystack: deposit, withdraw, rekonsiliasi |
+| 08 | Wallet | [modules/08-wallet.md](modules/08-wallet.md) | web3j self-custody: deposit, withdraw, rekonsiliasi |
 | 09 | Risk | [modules/09-risk.md](modules/09-risk.md) | Limit, velocity check; nanti margin & liquidation |
 | 10 | Compliance | [modules/10-compliance.md](modules/10-compliance.md) | KYC, AML, sanction screening, travel rule |
 | 11 | Fee | [modules/11-fee.md](modules/11-fee.md) | Maker/taker, tier VIP, fee report |
@@ -136,12 +136,12 @@ Tiap modul punya sub-package: `api/` (interface + DTO yang boleh dipakai modul l
 
 ### Fase 4 — Real Money (± 6-8 minggu) ⚠️ titik kritis
 **Tujuan:** deposit & withdraw crypto asli. Mulai fase ini, bug = kehilangan uang beneran.
-- [ ] Wallet: integrasi Fystack (deposit webhook + verifikasi signature, withdraw API, address per user)
+- [ ] Wallet: web3j self-custody (deposit detection poll, withdraw sign+broadcast, HD address per user, seed di OpenBao)
 - [ ] **Tax: withholding PPh/PPN per trade + akun ledger `kyra:tax:*` + rekap periode** (konsultan pajak paralel)
 - [ ] Compliance: KYC onboarding (provider eksternal), sanction + PEP screening, level akun → limit
 - [ ] Risk: limit withdraw harian, velocity check, approval threshold
 - [ ] Admin backoffice: approval withdraw manual, freeze akun/aset, dashboard operasional
-- [ ] Rekonsiliasi harian otomatis ledger ↔ Fystack + alarm selisih
+- [ ] Rekonsiliasi harian otomatis ledger ↔ custody on-chain + alarm selisih
 - [ ] Notification: email transaksi, webhook
 - [ ] Security hardening: pentest eksternal, review dependency (OWASP), secrets management (SOPS/Vault)
 - [ ] Runbook incident + backup restore drill (benar-benar dicoba restore!)

@@ -14,9 +14,10 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * Default custody backend (kyra-doc/modules/08). Deterministic addresses and
  * fake transaction refs — no network. As a {@link DefaultBean} it backs tests
- * and any run where {@code kyra.custody.provider} is not {@code fystack};
- * setting that property activates {@link com.kyra.wallet.infra.HttpCustodyProvider}
- * (real Fystack Apex API) instead. The wallet's logic does not change.
+ * and any run where {@code kyra.custody.provider} is not {@code web3j}; setting
+ * that property activates {@link com.kyra.wallet.infra.Web3jVaultCustodyProvider}
+ * (self-custody on an EVM chain, seed in OpenBao) instead. The wallet's logic
+ * does not change.
  */
 @ApplicationScoped
 @DefaultBean

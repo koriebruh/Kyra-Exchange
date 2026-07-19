@@ -26,11 +26,11 @@
 
 ### A3. Postgres durability (wajib, non-negotiable)
 - `synchronous_commit = on` (default — JANGAN dimatikan demi benchmark), `fsync = on`.
-- Failover ke replica async = ada window kehilangan → prosedur failover WAJIB: (1) cek `last_settled_seq` vs matching event log, (2) rekonsiliasi ledger vs Fystack SEBELUM buka trading/withdraw. Trading buka terakhir, withdraw paling terakhir.
+- Failover ke replica async = ada window kehilangan → prosedur failover WAJIB: (1) cek `last_settled_seq` vs matching event log, (2) rekonsiliasi ledger vs custody on-chain SEBELUM buka trading/withdraw. Trading buka terakhir, withdraw paling terakhir.
 
 ### A4. Jaring pengaman webhook (deposit — lubang kritis yang ditemukan audit)
 Webhook = jalur cepat, **BUKAN satu-satunya jalur**:
-- **Polling sweep** tiap 5 menit: tarik daftar transaksi dari Fystack API, diff dengan tabel deposits/withdrawals → transaksi yang tidak dikenal = proses seolah webhook datang (idempotent by txid, jadi aman dobel).
+- **Polling deteksi** tiap 5 menit: tarik daftar transaksi dari node/indexer, diff dengan tabel deposits/withdrawals → transaksi yang tidak dikenal = diproses (idempotent by txid, jadi aman dobel).
 - Withdraw BROADCASTING juga di-poll statusnya (bukan cuma nunggu webhook).
 - Metric: `kyra_wallet_sweep_found_missed_total` — nilai > 0 sesekali = normal (webhook loss terjadi); melonjak = investigasi.
 - Pola sama untuk webhook KYC provider: polling status submission yang menggantung > 1 jam.
@@ -74,7 +74,7 @@ Webhook = jalur cepat, **BUKAN satu-satunya jalur**:
 - Egress webhook lewat proxy/network namespace terpisah tanpa akses ke jaringan internal.
 - Response webhook tidak pernah di-log body-nya penuh (bisa berisi apapun).
 
-### B8. Webhook masuk (Fystack, KYC, email provider)
+### B8. Callback/poll masuk (node/indexer custody, KYC, email provider)
 - SEMUA webhook masuk: verifikasi signature + timestamp tolerance (anti-replay) + idempotency. Tidak ada pengecualian. Endpoint webhook = path rahasia + IP allowlist provider (defense berlapis, bukan pengganti signature).
 
 ## C. Checklist Penegakan (masuk CI / definition-of-done per modul)

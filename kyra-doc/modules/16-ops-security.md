@@ -7,7 +7,7 @@
 | Env | Tujuan | Data |
 |---|---|---|
 | `dev` | lokal developer, docker compose | dummy |
-| `staging` | mirror prod (spec lebih kecil), uji release + integrasi Fystack testnet | dummy + testnet chain |
+| `staging` | mirror prod (spec lebih kecil), uji release + custody di testnet chain | dummy + testnet chain |
 | `prod` | live | real |
 | `sandbox` (fase 5) | publik untuk developer bot: API identik, dana palsu | simulasi |
 
@@ -53,7 +53,7 @@
 ## 6. Security Program
 - **Perimeter:** Cloudflare (atau setara) di depan semua endpoint — DDoS mitigation, WAF, bot management. Origin IP dirahasiakan (firewall hanya terima dari CDN). Exchange PASTI kena DDoS & credential stuffing — bukan "kalau", tapi "kapan".
 - **Akses internal:** SSH key-only + MFA, akses prod via bastion, per-orang (tidak ada akun bersama), least privilege DB. **Offboarding checklist < 1 jam**: revoke SSH, VPN, admin role, secrets rotate yang dia tahu.
-- **Secrets:** SOPS+age (awal) → Vault (saat tim tumbuh). Rotasi terjadwal: API key Fystack, DB password, JWT signing key (dukung dua key aktif untuk rotasi mulus).
+- **Secrets:** OpenBao/Vault untuk seed custody + secret runtime; SOPS+age untuk config. Rotasi terjadwal: DB password, JWT signing key (dukung dua key aktif untuk rotasi mulus). Seed HD custody: backup + prosedur unseal OpenBao.
 - **Dependency & image scanning:** CI wajib (osv-scanner/Trivy), patch SLA: critical 48 jam.
 - **Pentest:** eksternal sebelum fase 4 go-live, lalu tahunan + setiap perubahan besar permukaan serangan.
 - **Bug bounty** (fase 5): mulai private program; scope, reward tiers, safe harbor jelas.
@@ -61,7 +61,7 @@
 - **Audit log review:** review berkala akses admin & anomali (bukan cuma dikumpulkan).
 
 ## 7. Proof of Reserves (fase 5 — kepercayaan publik pasca-FTX)
-- Publikasi berkala: Merkle tree dari saldo user (user bisa verifikasi saldo miliknya ada di tree) + bukti kepemilikan address custody (via Fystack) ≥ total liabilities.
+- Publikasi berkala: Merkle tree dari saldo user (user bisa verifikasi saldo miliknya ada di tree) + bukti kepemilikan address custody (on-chain) ≥ total liabilities.
 - Otomatiskan generasinya dari snapshot ledger; frekuensi bulanan.
 - Nilai jual kompetitif nyata di pasar Indonesia — bedakan dari exchange abal-abal.
 
@@ -69,10 +69,10 @@
 - [ ] Runbook per alert page (langkah diagnosis + mitigasi)
 - [ ] Prosedur failover DB
 - [ ] Prosedur restore backup (dites bulanan)
-- [ ] Playbook SEV1 + kontak darurat (Fystack support, penyedia server, konsultan hukum)
+- [ ] Playbook SEV1 + kontak darurat (penyedia node/RPC, penyedia server, konsultan hukum)
 - [ ] Onboarding/offboarding checklist
 - [ ] Register akses: siapa punya akses apa (review kuartalan)
 
 ## Testing / Verifikasi Berkala
-- Chaos drill kuartalan di staging: matikan DB primary / putus koneksi Fystack / kill app saat load → sistem berperilaku sesuai desain (fail-closed withdraw, recovery matching benar).
+- Chaos drill kuartalan di staging: matikan DB primary / putus koneksi node RPC / kill app saat load → sistem berperilaku sesuai desain (fail-closed withdraw, recovery matching benar).
 - Tabletop exercise insiden SEV1 dua kali setahun (latihan tim, bukan cuma sistem).

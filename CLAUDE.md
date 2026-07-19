@@ -70,9 +70,9 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
     (verification email sent).
   - admin (12): withdrawal approve/reject with immutable audit trail (V1200,
     append-only). Delegates to wallet.
-  - STILL VENDOR-BLOCKED (TECHDEBT): real Fystack custody, real KYC provider,
-    real email/SMTP, deposit detector (webhook/poll), reconciliation vs real
-    custody, tax IDR conversion.
+  - STILL FOLLOW-UP (TECHDEBT): custody ERC-20 tokens + deposit detector,
+    real KYC provider, real email/SMTP (Mailpit wired for dev), reconciliation
+    vs real custody, tax IDR conversion.
   - 4-eyes for large withdrawals DONE (wallet.requiredApprovals + admin distinct
     approvers, V1201).
 - Phase 5 (launch & liquidity) substantially DONE:
@@ -97,7 +97,9 @@ Modular monolith, Quarkus 3.x, Java 21, Maven multi-module.
   - Small/unblocked follow-ups: deposit detector (webhook/poll, mock), MM inventory
     skew + re-quote, anti-phishing code, velocity limits (Valkey), more notification
     producers, admin config/kill-switch ops.
-  - Vendor-blocked: real Fystack/KYC/email/price-feed integrations, PFAK/OJK licence.
+  - Custody: web3j self-custody + OpenBao is the chosen provider (tested vs
+    Anvil+OpenBao); ERC-20/deposit-detector remain (TECHDEBT). KYC/email/price-feed
+    vendor integrations + PFAK/OJK licence still pending.
   - fee (11) DONE — maker/taker rates frozen per order, deducted at settlement to
     kyra:fee:*. Tiers/overrides planned.
   - risk (09 spot) DONE — checkOrder (max notional + price band) wired into order
@@ -158,4 +160,4 @@ docker compose -f docker-compose.dev.yml --profile app up --build  # packaged ap
 ## Working conventions with the user
 - Conversation language: Indonesian. This is a serious product — the user demands rigor: re-check completeness, don't miss logic/edge cases, and always verify things actually run (not just compile) before claiming done.
 - Build phases are sequential; each phase has exit criteria in kyra-doc/README.md §5 — meet and prove them before moving on.
-- Custody = Fystack (verify their current API docs before implementing the wallet module). Indonesian compliance = OJK/PFAK; tax = module 15.
+- Custody = web3j self-custody on an EVM chain, HD wallet seed held in OpenBao (open-source Vault fork); behind the `CustodyProvider` interface so an MPC vendor (Fireblocks/BitGo) can be swapped in later. Dev chain = Anvil, secrets = OpenBao (both in docker-compose.dev.yml). Indonesian compliance = OJK/PFAK; tax = module 15.
