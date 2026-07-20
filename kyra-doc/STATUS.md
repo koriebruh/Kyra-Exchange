@@ -3,6 +3,10 @@
 ✅ = implemented **and** covered by passing tests (test class named) **and** confirmed to run.
 Anything not ticked is deferred/follow-up (see [TECHDEBT.md](TECHDEBT.md)) — not done.
 
+> **Not production-ready.** This lists what is *built + tested*, not what go-live
+> needs. For the full go-live gap list (legal, fiat, ERC-20/multi-chain custody,
+> KYC/AML vendors, frontend, prod ops), see **[GO-LIVE.md](GO-LIVE.md)**.
+
 Baseline: full reactor `./mvnw verify` green — **201 tests, 0 fail/error**. Live
 end-to-end proofs (beyond unit tests) are listed at the bottom.
 
