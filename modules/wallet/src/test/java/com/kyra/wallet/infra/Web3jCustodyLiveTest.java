@@ -112,7 +112,8 @@ class Web3jCustodyLiveTest {
         assumeTrue(res.statusCode() / 100 == 2, "could not write to OpenBao (status " + res.statusCode() + ")");
 
         OpenBaoSeedStore seedStore = new OpenBaoSeedStore(
-                OPENBAO, "root", "v1/secret/data/kyra/wallet-seed", "mnemonic", new ObjectMapper());
+                Optional.of(OPENBAO), Optional.of("root"),
+                "v1/secret/data/kyra/wallet-seed", "mnemonic", new ObjectMapper());
         assertEquals(MNEMONIC, seedStore.mnemonic());
     }
 

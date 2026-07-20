@@ -4,8 +4,9 @@ import com.kyra.common.money.AssetId;
 import com.kyra.common.money.Money;
 import com.kyra.wallet.api.CustodyProvider;
 
-import io.quarkus.arc.DefaultBean;
+import io.quarkus.arc.Unremovable;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Typed;
 
 import java.math.BigDecimal;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,14 +14,16 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * Default custody backend (kyra-doc/modules/08). Deterministic addresses and
- * fake transaction refs — no network. As a {@link DefaultBean} it backs tests
- * and any run where {@code kyra.custody.provider} is not {@code web3j}; setting
- * that property activates {@link com.kyra.wallet.infra.Web3jVaultCustodyProvider}
- * (self-custody on an EVM chain, seed in OpenBao) instead. The wallet's logic
- * does not change.
+ * fake transaction refs — no network. Chosen by {@code CustodyProviderProducer}
+ * when {@code kyra.custody.provider} is {@code mock} or unset (the default); set
+ * it to {@code web3j} for {@link com.kyra.wallet.infra.Web3jVaultCustodyProvider}
+ * (self-custody on an EVM chain, seed in OpenBao). {@code @Typed} keeps this out
+ * of the {@code CustodyProvider} bean set (the producer owns that) while staying
+ * injectable by concrete type for tests.
  */
 @ApplicationScoped
-@DefaultBean
+@Unremovable
+@Typed(MockCustodyProvider.class)
 public class MockCustodyProvider implements CustodyProvider {
 
     @Override

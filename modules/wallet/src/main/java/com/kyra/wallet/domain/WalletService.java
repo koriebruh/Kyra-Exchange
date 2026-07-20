@@ -58,6 +58,7 @@ public class WalletService implements WalletApi {
         this.em = em;
         this.ledger = ledger;
         this.fees = fees;
+        // custody is produced by CustodyProviderProducer from kyra.custody.provider (runtime).
         this.custody = custody;
         this.compliance = compliance;
         this.reserves = reserves;

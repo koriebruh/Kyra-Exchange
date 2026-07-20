@@ -3,7 +3,6 @@ package com.kyra.wallet.infra;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -17,13 +16,15 @@ import java.time.Duration;
  * Reads the HD wallet mnemonic from OpenBao (open-source Vault) KV v2. The seed
  * lives in OpenBao — encrypted at rest, access-controlled, auditable — not in
  * Kyra config. Fetched once and cached in memory (it is needed in memory to sign
- * anyway). Active only when {@code kyra.custody.provider=web3j}.
+ * anyway). Only constructed when the web3j provider is selected at runtime
+ * ({@code kyra.custody.provider=web3j}); in mock mode it is never instantiated,
+ * so its OpenBao config is not required then.
  *
  * <p>Reads {@code {address}/v1/{path}} with an {@code X-Vault-Token} header and
  * returns {@code data.data.<field>} from the KV-v2 response.
  */
 @ApplicationScoped
-@IfBuildProperty(name = "kyra.custody.provider", stringValue = "web3j", enableIfMissing = false)
+@io.quarkus.arc.Unremovable
 public class OpenBaoSeedStore implements WalletSeedStore {
 
     private final String address;
@@ -36,13 +37,15 @@ public class OpenBaoSeedStore implements WalletSeedStore {
     private volatile String cached;
 
     public OpenBaoSeedStore(
-            @ConfigProperty(name = "kyra.seedstore.openbao.address") String address,
-            @ConfigProperty(name = "kyra.seedstore.openbao.token") String token,
+            // Optional so the bean is always valid (only used when custody=web3j);
+            // presence is enforced at fetch time, not construction.
+            @ConfigProperty(name = "kyra.seedstore.openbao.address") java.util.Optional<String> address,
+            @ConfigProperty(name = "kyra.seedstore.openbao.token") java.util.Optional<String> token,
             @ConfigProperty(name = "kyra.seedstore.openbao.path", defaultValue = "v1/secret/data/kyra/wallet-seed") String path,
             @ConfigProperty(name = "kyra.seedstore.openbao.field", defaultValue = "mnemonic") String field,
             ObjectMapper mapper) {
-        this.address = address;
-        this.token = token;
+        this.address = address.orElse("");
+        this.token = token.orElse("");
         this.path = path;
         this.field = field;
         this.mapper = mapper;
@@ -64,6 +67,10 @@ public class OpenBaoSeedStore implements WalletSeedStore {
     }
 
     private String fetch() {
+        if (address.isBlank() || token.isBlank()) {
+            throw new IllegalStateException(
+                    "custody=web3j but kyra.seedstore.openbao.address/token not configured");
+        }
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(address.replaceAll("/+$", "") + "/" + path))
                 .timeout(Duration.ofSeconds(10))

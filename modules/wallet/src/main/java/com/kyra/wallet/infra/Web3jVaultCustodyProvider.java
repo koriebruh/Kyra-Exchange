@@ -4,8 +4,6 @@ import com.kyra.common.money.AssetId;
 import com.kyra.common.money.Money;
 import com.kyra.wallet.api.CustodyProvider;
 
-import io.quarkus.arc.properties.IfBuildProperty;
-import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.RawTransaction;
@@ -43,8 +41,6 @@ import java.util.Optional;
  * means Kyra holds the key</b>; production key security (hot/cold split, OpenBao
  * unseal, backups) is on the operator.
  */
-@ApplicationScoped
-@IfBuildProperty(name = "kyra.custody.provider", stringValue = "web3j", enableIfMissing = false)
 public class Web3jVaultCustodyProvider implements CustodyProvider {
 
     private static final Logger LOG = Logger.getLogger(Web3jVaultCustodyProvider.class);

@@ -4,6 +4,7 @@ import com.kyra.account.api.InsufficientBalanceException;
 import com.kyra.identity.api.AuthenticationException;
 import com.kyra.identity.api.InvalidRegistrationException;
 import com.kyra.order.api.OrderRejectedException;
+import com.kyra.wallet.api.WithdrawalRejectedException;
 
 import io.opentelemetry.api.trace.Span;
 import jakarta.ws.rs.WebApplicationException;
@@ -33,6 +34,10 @@ public class GlobalExceptionMapper implements ExceptionMapper<Throwable> {
                     build(Response.Status.CONFLICT, InsufficientBalanceException.CODE, "Insufficient balance.", traceId);
             case OrderRejectedException e ->
                     build(Response.Status.BAD_REQUEST, e.code(), e.getMessage(), traceId);
+            case WithdrawalRejectedException e ->
+                    // Compliance/policy refusal (KYC, frozen, screened address): a
+                    // business-rule rejection, not a server fault → 422 with the code.
+                    Response.status(422).entity(ApiError.of(e.code(), e.getMessage(), traceId)).build();
             case InvalidRegistrationException e ->
                     build(Response.Status.BAD_REQUEST, InvalidRegistrationException.CODE, e.getMessage(), traceId);
             case IllegalArgumentException e ->
